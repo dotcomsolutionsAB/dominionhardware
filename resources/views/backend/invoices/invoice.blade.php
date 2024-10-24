@@ -87,7 +87,7 @@
 					<td class="text-right small"><span class="gry-color small">{{  translate('Order Date') }}:</span> <span class=" strong">{{ date('d-m-Y', $order->date) }}</span></td>
 				</tr>
 				<tr>
-					<td class="gry-color small">{{  translate('GSTIN') }}: 19AACFD3088K1Z5</td>
+					<td class="gry-color small">{{  translate('GSTIN') }}: 19AACFD3088K1Z511</td>
 					<td class="text-right small">
                         <span class="gry-color small">
                             {{  translate('Payment method') }}:
@@ -182,12 +182,6 @@
 	        	</thead>
 		        <tbody>
 			        <tr>
-			            <td class="text-left">
-                            @php
-                                $removedXML = '<?xml version="1.0" encoding="UTF-8"?>';
-                            @endphp
-                            {!! str_replace($removedXML,"", QrCode::size(100)->generate($order->code)) !!}
-			            </td>
 			            <td>
 					        <table class="text-right sm-padding small strong">
 						        <tbody>
