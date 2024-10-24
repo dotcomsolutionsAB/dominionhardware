@@ -1,0 +1,13 @@
+/*your custom css goes here*/ 
+
+/* .aiz-megabox > input:checked ~ .aiz-megabox-elem, .aiz-megabox > input:checked ~ .aiz-megabox-elem{
+    background-color: var(--primary);
+    width: 150px;
+    color: white;
+} */
+
+.img-fit {
+    max-height: 100%;
+    width: 100%;
+    object-fit: contain!important;
+}
