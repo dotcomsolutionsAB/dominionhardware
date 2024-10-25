@@ -155,27 +155,40 @@ while ($row_1 = $query_1->fetch_assoc()) {
                 } else {
                     $published = 1;
                 }
+                echo "sku : ".$sku ."<br>";
+
+                $pos = $header_array['Regular Price'];
+                $regular_price = floatval($data[$pos]);
+                echo $regular_price .": regular price <br>";
 
                 $pos = $header_array['Sale Price'];
                 $sale_price = floatval($data[$pos]);
                  echo $sale_price ."Sale price : <br>";
 
+                $discount = $regular_price - $sale_price;  // 63.14
+                echo $discount .": discount <br>";
+
                 $pos = $header_array['Tax Rate'];
                 $tax_value = floatval($data[$pos]);
                 
                 $tst_unit_price = $sale_price * (1 + $tax_value/100);
-                 echo "before tst_unit_price : ".$tst_unit_price. " <br>" ;
+                echo "before tst_unit_price : ".$tst_unit_price. " <br>" ;
 
+                $tst_reg_unit_price = $regular_price * (1 + $tax_value/100);
+                echo "before tst_reg_unit_price : ".$tst_reg_unit_price. " <br>" ;
                 // Unit price (after calculating tax)
                 // $unit_price = $unit_price - $tax;
                 $tax = $tst_unit_price - $sale_price;
                  echo $tax ."tax : <br>";
 
+                 $reg_tax = $tst_reg_unit_price - $regular_price;
+                 echo $reg_tax ."reg_tax : <br>";
 
 
                 $unit_price =round($tst_unit_price) - $tax;
                 echo "before unit price : ".$unit_price. " <br>" ;
 
+                // die;
                 // $total = "unit_price:".$unit_price ." + "." tax ".$tax. " = ".$unit_price+$tax;
                 //  die($total);
                 
@@ -296,10 +309,10 @@ while ($row_1 = $query_1->fetch_assoc()) {
                     }
 
                     // $sql = "UPDATE products SET `name`='$name',`image_link`='$image_link',`description`='$description',`cash_on_delivery`='$cod',`wa_keyword`='$wa_keyword',`features`='$features',`user_id`='9',`category_id`='$category_id',`brand_id`='$brand_id',`unit_price`='$unit_price',`unit`='$unit',`weight`='$weight',`tax`='$tax',`tax_type`='amount',`meta_title`='$name',`meta_description`='$description',`slug`='$slug',`variant_product`='$variant_product',`choice_options`='$choice_options',`attributes`='$attributes',`published` = '$published',`min_qty` = '$min_qty',`discount`=0, `discount_type`='amount', `product_specification`='$specification_html',`pdf`='$pdf_url' WHERE `sku` = '$sku'";
-                    $sql = "UPDATE products SET `name`='$name',`image_link`='$image_link',`description`='$description',`cash_on_delivery`='$cod',`wa_keyword`='$wa_keyword',`features`='$features',`user_id`='9',`category_id`='$category_id',`brand_id`='$brand_id',`unit_price`='$unit_price',`unit`='$unit',`weight`='$weight',`tax`='$tax',`tax_type`='$update_tax_type',`meta_title`='$name',`meta_description`='$description',`slug`='$slug',`variant_product`='$variant_product',`choice_options`='$choice_options',`attributes`='$attributes',`published`='$published',`min_qty`='$min_qty',`discount`=0, `discount_type`='amount', `product_specification`='$specification_html',`pdf`='$pdf_url' WHERE `sku`='$sku'";
+                    $sql = "UPDATE products SET `name`='$name',`image_link`='$image_link',`description`='$description',`cash_on_delivery`='$cod',`wa_keyword`='$wa_keyword',`features`='$features',`user_id`='9',`category_id`='$category_id',`brand_id`='$brand_id',`unit_price`='$unit_price',`unit`='$unit',`weight`='$weight',`discount`='$discount',`reg_tax`='$reg_tax',`tax`='$tax',`tax_type`='$update_tax_type',`meta_title`='$name',`meta_description`='$description',`slug`='$slug',`variant_product`='$variant_product',`choice_options`='$choice_options',`attributes`='$attributes',`published`='$published',`min_qty`='$min_qty',`discount_type`='amount', `product_specification`='$specification_html',`pdf`='$pdf_url' WHERE `sku`='$sku'";
 
                     $query = $db->query($sql);
-
+                    echo "<br> Query : ". $sql."<br>";
                     $sql_tax_check = "SELECT COUNT(*) AS total FROM `product_taxes` WHERE `product_id` = '$product_id'";
                     $query_tax_check = $db->query($sql_tax_check);
                     $row_tax_check = $query_tax_check->fetch_assoc();
@@ -329,7 +342,7 @@ while ($row_1 = $query_1->fetch_assoc()) {
                         }
 
                         // Prepare SQL statement
-                        $stmt = $conn->prepare("INSERT INTO products (`sku`,`name`,`image_link`,`description`,`features`,`user_id`,`category_id`,`brand_id`,`unit_price`,`slug`,`colors`,`choice_options`, `published`,`variant_product`,`attributes`,`unit`,`weight`,`tax`,`tax_type`,`meta_title`,`meta_description`,`min_qty`,`discount`,`discount_type`,`cash_on_delivery`,`wa_keyword`, `product_specification`,`pdf`) VALUES ('$sku','$name','$image_link','$description','$features','9','$category_id','$brand_id','$unit_price','$slug','[]','$choice_options','$published','$variant_product','$attributes','$unit','$weight','$tax','amount','$name','$description','$min_qty','0','amount','$cod','$wa_keyword','$specification_html','$pdf_url')");
+                        $stmt = $conn->prepare("INSERT INTO products (`sku`,`name`,`image_link`,`description`,`features`,`user_id`,`category_id`,`brand_id`,`unit_price`,`slug`,`colors`,`choice_options`, `published`,`variant_product`,`attributes`,`unit`,`weight`,`discount`,`reg_tax`,`tax`,`tax_type`,`meta_title`,`meta_description`,`min_qty`,`discount_type`,`cash_on_delivery`,`wa_keyword`, `product_specification`,`pdf`) VALUES ('$sku','$name','$image_link','$description','$features','9','$category_id','$brand_id','$unit_price','$slug','[]','$choice_options','$published','$variant_product','$attributes','$unit','$weight','$discount','$reg_tax','$tax','amount','$name','$description','$min_qty','amount','$cod','$wa_keyword','$specification_html','$pdf_url')");
                         // $sql_insert_product = "INSERT INTO products (`sku`,`name`,`image_link`,`description`,`features`,`user_id`,`category_id`,`brand_id`,`unit_price`,`slug`,`colors`,`choice_options`, `published`,`variant_product`,`attributes`,`unit`,`weight`,`tax`,`tax_type`,`meta_title`,`meta_description`,`min_qty`,`discount`,`discount_type`,`cash_on_delivery`,`wa_keyword`, `product_specification`,`pdf`) VALUES ('$sku','$name','$image_link','$description','$features','9','$category_id','$brand_id','$unit_price','$slug','[]','$choice_options','$published','$variant_product','$attributes','$unit','$weight','$tax','amount','$name','$description','$min_qty','0','amount','$cod','$wa_keyword','$specification_html','$pdf_url')";
                         // $db->query($sql_insert_product);
 
