@@ -133,7 +133,7 @@ while ($row_1 = $query_1->fetch_assoc()) {
             $pos = $header_array['Product Name'];
             $name = addslashes($data[$pos]);
 
-            if ($sku != '' && !empty($sku) && !empty($name) && $sku != '') {
+            if ($sku != '' && !empty($sku)) {
 
                 $pos = $header_array['Merchant Item ID'];
                 $item_id = $data[$pos];
@@ -153,7 +153,7 @@ while ($row_1 = $query_1->fetch_assoc()) {
                 $pos = $header_array['Status'];
                 $product_status = $data[$pos];
 
-                if ($product_status == 'draft') {
+                if ($product_status == 'draft' && empty($name) && $name == '') {
                     $published = 0;
                 } else {
                     $published = 1;
