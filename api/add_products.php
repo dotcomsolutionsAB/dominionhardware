@@ -165,16 +165,11 @@ while ($row_1 = $query_1->fetch_assoc()) {
                 $sale_price = floatval($data[$pos]);
                  echo $sale_price ."Sale price : <br>";
 
-                
-
                 $pos = $header_array['Tax Rate'];
                 $tax_value = floatval($data[$pos]);
                 
                 $tst_unit_price = $sale_price * (1 + $tax_value/100);
                 echo "before tst_unit_price : ".$tst_unit_price. " <br>" ;
-
-                $discount = $regular_price - $tst_unit_price;  // 63.14
-                echo $discount .": discount <br>";
 
                 $tst_reg_unit_price = $regular_price * (1 + $tax_value/100);
                 echo "before tst_reg_unit_price : ".$tst_reg_unit_price. " <br>" ;
@@ -190,6 +185,9 @@ while ($row_1 = $query_1->fetch_assoc()) {
                 $unit_price =round($tst_unit_price) - $tax;
                 echo "before unit price : ".$unit_price. " <br>" ;
 
+                $discount = round($regular_price - $unit_price);  // 63.14
+                echo $discount .": discount <br>";
+                
                 // die;
                 // $total = "unit_price:".$unit_price ." + "." tax ".$tax. " = ".$unit_price+$tax;
                 //  die($total);
