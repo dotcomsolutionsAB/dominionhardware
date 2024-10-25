@@ -283,7 +283,7 @@
             @else
                 <div class="row no-gutters mb-3">
                     <div class="col-sm-2">
-                        <div class="text-secondary fs-14 fw-400">{{ translate('Price') }}</div>
+                        <div class="text-secondary fs-14 fw-400">{{ translate('Pricess') }}</div>
                     </div>
                     <div class="col-sm-10">
                         <div class="d-flex align-items-center">
