@@ -33,49 +33,6 @@
             </div>
         @endif
     </div>
-    <div class="row align-items-center">
-        @if(get_setting('product_query_activation') == 1)
-            <!-- Ask about this product -->
-            <div class="col-xl-3 col-lg-4 col-md-3 col-sm-4 mb-3">
-                <a href="javascript:void();" onclick="goToView('product_query')" class="text-primary fs-14 fw-600 d-flex">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 32 32">
-                        <g id="Group_25571" data-name="Group 25571" transform="translate(-975 -411)">
-                            <g id="Path_32843" data-name="Path 32843" transform="translate(975 411)" fill="#fff">
-                                <path
-                                    d="M 16 31 C 11.9933500289917 31 8.226519584655762 29.43972969055176 5.393400192260742 26.60659980773926 C 2.560270071029663 23.77347946166992 1 20.00665092468262 1 16 C 1 11.9933500289917 2.560270071029663 8.226519584655762 5.393400192260742 5.393400192260742 C 8.226519584655762 2.560270071029663 11.9933500289917 1 16 1 C 20.00665092468262 1 23.77347946166992 2.560270071029663 26.60659980773926 5.393400192260742 C 29.43972969055176 8.226519584655762 31 11.9933500289917 31 16 C 31 20.00665092468262 29.43972969055176 23.77347946166992 26.60659980773926 26.60659980773926 C 23.77347946166992 29.43972969055176 20.00665092468262 31 16 31 Z"
-                                    stroke="none" />
-                                <path
-                                    d="M 16 2 C 12.26045989990234 2 8.744749069213867 3.456249237060547 6.100500106811523 6.100500106811523 C 3.456249237060547 8.744749069213867 2 12.26045989990234 2 16 C 2 19.73954010009766 3.456249237060547 23.2552490234375 6.100500106811523 25.89949989318848 C 8.744749069213867 28.54375076293945 12.26045989990234 30 16 30 C 19.73954010009766 30 23.2552490234375 28.54375076293945 25.89949989318848 25.89949989318848 C 28.54375076293945 23.2552490234375 30 19.73954010009766 30 16 C 30 12.26045989990234 28.54375076293945 8.744749069213867 25.89949989318848 6.100500106811523 C 23.2552490234375 3.456249237060547 19.73954010009766 2 16 2 M 16 0 C 24.8365592956543 0 32 7.163440704345703 32 16 C 32 24.8365592956543 24.8365592956543 32 16 32 C 7.163440704345703 32 0 24.8365592956543 0 16 C 0 7.163440704345703 7.163440704345703 0 16 0 Z"
-                                    stroke="none" fill="{{ get_setting('secondary_base_color', '#ffc519') }}" />
-                            </g>
-                            <path id="Path_32842" data-name="Path 32842"
-                                d="M28.738,30.935a1.185,1.185,0,0,1-1.185-1.185,3.964,3.964,0,0,1,.942-2.613c.089-.095.213-.207.361-.344.735-.658,2.252-2.032,2.252-3.555a2.228,2.228,0,0,0-2.37-2.37,2.228,2.228,0,0,0-2.37,2.37,1.185,1.185,0,1,1-2.37,0,4.592,4.592,0,0,1,4.74-4.74,4.592,4.592,0,0,1,4.74,4.74c0,2.577-2.044,4.432-3.028,5.333l-.284.255a1.89,1.89,0,0,0-.243.948A1.185,1.185,0,0,1,28.738,30.935Zm0,3.561a1.185,1.185,0,0,1-.835-2.026,1.226,1.226,0,0,1,1.671,0,1.061,1.061,0,0,1,.148.184,1.345,1.345,0,0,1,.113.2,1.41,1.41,0,0,1,.065.225,1.138,1.138,0,0,1,0,.462,1.338,1.338,0,0,1-.065.219,1.185,1.185,0,0,1-.113.207,1.06,1.06,0,0,1-.148.184A1.185,1.185,0,0,1,28.738,34.5Z"
-                                transform="translate(962.004 400.504)" fill="{{ get_setting('secondary_base_color', '#ffc519') }}" />
-                        </g>
-                    </svg>
-                    <span class="ml-2 text-primary animate-underline-blue">{{ translate('Product Inquiry') }}</span>
-                </a>
-            </div>
-        @endif
-        <div class="col mb-3">
-            @if ($detailedProduct->auction_product != 1)
-                <div class="d-flex">
-                    <!-- Add to wishlist button -->
-                    <a href="javascript:void(0)" onclick="addToWishList({{ $detailedProduct->id }})"
-                        class="mr-3 fs-14 text-dark opacity-60 has-transitiuon hov-opacity-100">
-                        <i class="la la-heart-o mr-1"></i>
-                        {{ translate('Add to Wishlist') }}
-                    </a>
-                    <!-- Add to compare button -->
-                    <a href="javascript:void(0)" onclick="addToCompare({{ $detailedProduct->id }})"
-                        class="fs-14 text-dark opacity-60 has-transitiuon hov-opacity-100">
-                        <i class="las la-sync mr-1"></i>
-                        {{ translate('Add to Compare') }}
-                    </a>
-                </div>
-            @endif
-        </div>
-    </div>
 
 
     <!-- Brand Logo & Name -->
@@ -87,54 +44,6 @@
         </div>
     @endif
 
-    <!-- Seller Info -->
-    <div class="d-flex flex-wrap align-items-center">
-        <div class="d-flex align-items-center mr-4">
-            <!-- Shop Name -->
-            @if ($detailedProduct->added_by == 'seller' && get_setting('vendor_system_activation') == 1)
-                <span class="text-secondary fs-14 fw-400 mr-4 w-50px">{{ translate('Sold by') }}</span>
-                <a href="{{ route('shop.visit', $detailedProduct->user->shop->slug) }}"
-                    class="text-reset hov-text-primary fs-14 fw-700">{{ $detailedProduct->user->shop->name }}</a>
-            @else
-                <p class="mb-0 fs-14 fw-700">{{ translate('Inhouse product') }}</p>
-            @endif
-        </div>
-        <!-- Messase to seller -->
-        @if (get_setting('conversation_system') == 1)
-            <div class="">
-                <button class="btn btn-sm btn-soft-secondary-base btn-outline-secondary-base hov-svg-white hov-text-white rounded-4"
-                    onclick="show_chat_modal()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"
-                        class="mr-2 has-transition">
-                        <g id="Group_23918" data-name="Group 23918" transform="translate(1053.151 256.688)">
-                            <path id="Path_3012" data-name="Path 3012"
-                                d="M134.849,88.312h-8a2,2,0,0,0-2,2v5a2,2,0,0,0,2,2v3l2.4-3h5.6a2,2,0,0,0,2-2v-5a2,2,0,0,0-2-2m1,7a1,1,0,0,1-1,1h-8a1,1,0,0,1-1-1v-5a1,1,0,0,1,1-1h8a1,1,0,0,1,1,1Z"
-                                transform="translate(-1178 -341)" fill="{{ get_setting('secondary_base_color', '#ffc519') }}" />
-                            <path id="Path_3013" data-name="Path 3013"
-                                d="M134.849,81.312h8a1,1,0,0,1,1,1v5a1,1,0,0,1-1,1h-.5a.5.5,0,0,0,0,1h.5a2,2,0,0,0,2-2v-5a2,2,0,0,0-2-2h-8a2,2,0,0,0-2,2v.5a.5.5,0,0,0,1,0v-.5a1,1,0,0,1,1-1"
-                                transform="translate(-1182 -337)" fill="{{ get_setting('secondary_base_color', '#ffc519') }}" />
-                            <path id="Path_3014" data-name="Path 3014"
-                                d="M131.349,93.312h5a.5.5,0,0,1,0,1h-5a.5.5,0,0,1,0-1"
-                                transform="translate(-1181 -343.5)" fill="{{ get_setting('secondary_base_color', '#ffc519') }}" />
-                            <path id="Path_3015" data-name="Path 3015"
-                                d="M131.349,99.312h5a.5.5,0,1,1,0,1h-5a.5.5,0,1,1,0-1"
-                                transform="translate(-1181 -346.5)" fill="{{ get_setting('secondary_base_color', '#ffc519') }}" />
-                        </g>
-                    </svg>
-
-                    {{ translate('Message Seller') }}
-                </button>
-            </div>
-        @endif
-        <!-- Size guide -->
-        @php
-            $sizeChartId = ($detailedProduct->main_category && $detailedProduct->main_category->sizeChart) ? $detailedProduct->main_category->sizeChart->id : 0;
-            $sizeChartName = ($detailedProduct->main_category && $detailedProduct->main_category->sizeChart) ? $detailedProduct->main_category->sizeChart->name : null;
-        @endphp
-        {{-- <div class=" ml-4">
-            <a href="javascript:void(1);" onclick="showSizeChartDetail({{ $sizeChartId }}, '{{ $sizeChartName }}')" class="animate-underline-primary">{{ translate('Show size guide') }}</a>
-        </div> --}}
-    </div>
     <br/>
     {{-- <div id="bulk-discount-table">
 
