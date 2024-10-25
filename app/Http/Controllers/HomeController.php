@@ -542,13 +542,13 @@ class HomeController extends Controller
                 $discount_applicable = true;
             }
 
-            if ($discount_applicable) {
-                if ($product->discount_type == 'percent') {
-                    $price -= ($price * $product->discount) / 100;
-                } elseif ($product->discount_type == 'amount') {
-                    $price -= $product->discount;
-                }
-            }
+            // if ($discount_applicable) {
+            //     if ($product->discount_type == 'percent') {
+            //         $price -= ($price * $product->discount) / 100;
+            //     } elseif ($product->discount_type == 'amount') {
+            //         $price -= $product->discount;
+            //     }
+            // }
 
             // taxes
             foreach ($product->taxes as $product_tax) {
@@ -559,13 +559,14 @@ class HomeController extends Controller
                 }
             }
 
-            $price += $tax;
-
+            //$price += $tax;
+ 			$ex_price=$price + $tax;
+            
             return array(
-                'price' => single_price($price * $request->quantity),
+                'price' => single_price($ex_price * $request->quantity),
                 'rawprice' => $price * $request->quantity,
                 'quantity' => $quantity,
-                'price_excluding' => single_price( ($price - $tax) * $request->quantity ),
+                'price_excluding' => single_price( ($price) * $request->quantity ),
                 'tax' => single_price( $tax * $request->quantity ),
                 'digital' => $product->digital,
                 'variation' => $str,
