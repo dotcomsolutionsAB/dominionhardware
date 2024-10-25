@@ -309,13 +309,13 @@ if (!function_exists('cart_product_price')) {
                 $discount_applicable = true;
             }
 
-            if ($discount_applicable) {
-                if ($product->discount_type == 'percent') {
-                    $price -= ($price * $product->discount) / 100;
-                } elseif ($product->discount_type == 'amount') {
-                    $price -= $product->discount;
-                }
-            }
+            //if ($discount_applicable) {
+            //     if ($product->discount_type == 'percent') {
+            //         $price -= ($price * $product->discount) / 100;
+            //     } elseif ($product->discount_type == 'amount') {
+            //         $price -= $product->discount;
+            //     }
+            // }
         } else {
             $price = $product->bids->max('amount');
         }
@@ -556,8 +556,8 @@ if (!function_exists('carts_coupon_discount')) {
 if (!function_exists('home_price')) {
     function home_price($product, $formatted = true)
     {
-        $lowest_price = $product->unit_price;
-        $highest_price = $product->unit_price;
+        $lowest_price = $product->unit_price + $product->reg_tax + $product->discount;
+        $highest_price = $product->unit_price + $product->reg_tax + $product->discount;
 
         if ($product->variant_product) {
             foreach ($product->stocks as $key => $stock) {
@@ -570,15 +570,15 @@ if (!function_exists('home_price')) {
             }
         }
 
-        foreach ($product->taxes as $product_tax) {
-            if ($product_tax->tax_type == 'percent') {
-                $lowest_price += ($lowest_price * $product_tax->tax) / 100;
-                $highest_price += ($highest_price * $product_tax->tax) / 100;
-            } elseif ($product_tax->tax_type == 'amount') {
-                $lowest_price += $product_tax->tax;
-                $highest_price += $product_tax->tax;
-            }
-        }
+        // foreach ($product->taxes as $product_tax) {
+        //     if ($product_tax->tax_type == 'percent') {
+        //         $lowest_price += ($lowest_price * $product_tax->tax) / 100;
+        //         $highest_price += ($highest_price * $product_tax->tax) / 100;
+        //     } elseif ($product_tax->tax_type == 'amount') {
+        //         $lowest_price += $product_tax->tax;
+        //         $highest_price += $product_tax->tax;
+        //     }
+        // }
 
         if ($formatted) {
             if ($lowest_price == $highest_price) {
@@ -596,8 +596,8 @@ if (!function_exists('home_price')) {
 if (!function_exists('home_discounted_price')) {
     function home_discounted_price($product, $formatted = true)
     {
-        $lowest_price = $product->unit_price;
-        $highest_price = $product->unit_price;
+        $lowest_price = $product->unit_price + $product->tax ;
+        $highest_price = $product->unit_price + $product->tax ;
 
         if ($product->variant_product) {
             foreach ($product->stocks as $key => $stock) {
@@ -617,29 +617,29 @@ if (!function_exists('home_discounted_price')) {
         } elseif (
             strtotime(date('d-m-Y H:i:s')) >= $product->discount_start_date &&
             strtotime(date('d-m-Y H:i:s')) <= $product->discount_end_date
-        ) {
+        ){
             $discount_applicable = true;
         }
 
-        if ($discount_applicable) {
-            if ($product->discount_type == 'percent') {
-                $lowest_price -= ($lowest_price * $product->discount) / 100;
-                $highest_price -= ($highest_price * $product->discount) / 100;
-            } elseif ($product->discount_type == 'amount') {
-                $lowest_price -= $product->discount;
-                $highest_price -= $product->discount;
-            }
-        }
+        // if ($discount_applicable) {
+        //     if ($product->discount_type == 'percent') {
+        //         $lowest_price -= ($lowest_price * $product->discount) / 100;
+        //         $highest_price -= ($highest_price * $product->discount) / 100;
+        //     } elseif ($product->discount_type == 'amount') {
+        //         $lowest_price -= $product->discount;
+        //         $highest_price -= $product->discount;
+        //     }
+        // }
 
-        foreach ($product->taxes as $product_tax) {
-            if ($product_tax->tax_type == 'percent') {
-                $lowest_price += ($lowest_price * $product_tax->tax) / 100;
-                $highest_price += ($highest_price * $product_tax->tax) / 100;
-            } elseif ($product_tax->tax_type == 'amount') {
-                $lowest_price += $product_tax->tax;
-                $highest_price += $product_tax->tax;
-            }
-        }
+        // foreach ($product->taxes as $product_tax) {
+        //     if ($product_tax->tax_type == 'percent') {
+        //         $lowest_price += ($lowest_price * $product_tax->tax) / 100;
+        //         $highest_price += ($highest_price * $product_tax->tax) / 100;
+        //     } elseif ($product_tax->tax_type == 'amount') {
+        //         $lowest_price += $product_tax->tax;
+        //         $highest_price += $product_tax->tax;
+        //     }
+        // }
 
         if ($formatted) {
             if ($lowest_price == $highest_price) {
@@ -773,6 +773,7 @@ if (!function_exists('home_discounted_base_price')) {
         return $formatted ? format_price(convert_price($price)) : convert_price($price);
     }
 }
+
 if (!function_exists('renderStarRating')) {
     function renderStarRating($rating, $maxRating = 5)
     {
