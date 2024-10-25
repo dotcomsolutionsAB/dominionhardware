@@ -30,8 +30,9 @@ class CartUtility
 
     public static function get_price($product, $product_stock, $quantity)
     {
+        //$price = $product_stock->price;
         $price = $product_stock->price;
-        if ($product->auction_product == 1) {
+		if ($product->auction_product == 1) {
             $price = $product->bids->max('amount');
         }
 
@@ -60,13 +61,13 @@ class CartUtility
             $discount_applicable = true;
         }
 
-        if ($discount_applicable) {
-            if ($product->discount_type == 'percent') {
-                $price -= ($price * $product->discount) / 100;
-            } elseif ($product->discount_type == 'amount') {
-                $price -= $product->discount;
-            }
-        }
+        // if ($discount_applicable) {
+        //     if ($product->discount_type == 'percent') {
+        //         $price -= ($price * $product->discount) / 100;
+        //     } elseif ($product->discount_type == 'amount') {
+        //         $price -= $product->discount;
+        //     }
+        // }
         return $price;
     }
 
