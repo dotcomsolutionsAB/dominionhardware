@@ -133,7 +133,7 @@ while ($row_1 = $query_1->fetch_assoc()) {
             $pos = $header_array['Product Name'];
             $name = addslashes($data[$pos]);
 
-            if ($sku != '' && !empty($sku)) {
+            if ($sku != '' && !empty($sku) && $name != '') {
 
                 $pos = $header_array['Merchant Item ID'];
                 $item_id = $data[$pos];
