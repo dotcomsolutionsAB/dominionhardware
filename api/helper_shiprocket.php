@@ -4,7 +4,7 @@ ini_set('display_errors',1);
 // Database configuration
 define('DB_HOST', 'localhost');
 define('DB_USER', 'dominion');
-define('DB_PASS', '34Ey5*xt8');
+define('DB_PASS', '246XcBztd1rzIe&vh');
 define('DB_NAME', 'dominion');
 
 // Shiprocket API credentials
