@@ -351,14 +351,14 @@ class OrderController extends Controller
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            // CURLOPT_POSTFIELDS =>'{
-            //     "email": "globalmark52@gmail.com",
-            //     "password": "yp$duLBeZjE7qAn"
-            // }',
             CURLOPT_POSTFIELDS =>'{
-                "email": "dotcomsolutions.apps@gmail.com",
-                "password": "Rh]DqqHR4/<=#"
+                "email": "kmohammed2307@gmail.com",
+                "password": "yp$duLBeZjE7qAn"
             }',
+            // CURLOPT_POSTFIELDS =>'{
+            //     "email": "dotcomsolutions.apps@gmail.com",
+            //     "password": "Rh]DqqHR4/<=#"
+            // }',
             CURLOPT_HTTPHEADER => array(
                 'Content-Type: application/json'
             ),
@@ -383,16 +383,16 @@ class OrderController extends Controller
             // }
 
             $post_fields = '{
-                "order_id": "'.$order->code.'A'.'",
+                "order_id": "'.$order->code.'",
                 "order_date": "'.date('Y-m-d', $order->date).'",
                 
 
-                "comment": "Test Order",
+                "comment": "Order from E-Commerce Website",
 
-                "pickup_location" : "Dot Com Solutions",
-            "channel_id" : "342406", 
+                "pickup_location":"SHOWROOM",
+                "channel_id":"244252",
 
-                "reseller_name": "Dominion",
+                "reseller_name": "Dominion Hardware Stores",
                 "company_name": "'.$shippingAddress['name'].'",
                 "billing_customer_name": "'.$shippingAddress['name'].' ",
                 "billing_last_name": "",
