@@ -25,13 +25,11 @@ class GoogleMerchantFeedController extends Controller
         $channel->addChild('link', url('/'));
         $channel->addChild('description', 'Matrix+');
 
-        // Define the product IDs you want to process
-        $targetProductIds = [699, 700, 701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713];
-
-        // Filter the products by the specified IDs
+        // Filter the products by the specified IDs, brand_id, and published status
         $filteredProducts = $products->filter(function($product) use ($targetProductIds) {
-            return in_array($product->id, $targetProductIds);
+            return $product->brand_id == 1 && $product->published == 1;
         });
+
 
         // Iterate through products and their stocks
         foreach ($filteredProducts as $product) {
