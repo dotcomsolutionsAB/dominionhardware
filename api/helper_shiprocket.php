@@ -8,10 +8,10 @@ define('DB_PASS', '246XcBztd1rzIe&vh');
 define('DB_NAME', 'dominion');
 
 // Shiprocket API credentials
-define('SHIPROCKET_EMAIL', 'dotcomsolutions.apps@gmail.com');
-define('SHIPROCKET_PASSWORD', 'Rh]DqqHR4/<=#');
-// define('SHIPROCKET_EMAIL', 'globalmark52@gmail.com');
-// define('SHIPROCKET_PASSWORD', 'yp$duLBeZjE7qAn');
+//define('SHIPROCKET_EMAIL', 'dotcomsolutions.apps@gmail.com');
+//define('SHIPROCKET_PASSWORD', 'Rh]DqqHR4/<=#');
+define('SHIPROCKET_EMAIL', 'kmohammed2307@gmail.com');
+define('SHIPROCKET_PASSWORD', 'yp$duLBeZjE7qAn');
 
 // Function to get database connection
 function getDatabaseConnection() {
@@ -122,14 +122,14 @@ function createShiprocketOrder($token, $order, $order_details, $order_items_arr,
         'order_id' => $details_arr['code'],
         // 'order_id' => 126,
         'order_date' => date('Y-m-d', strtotime('-1 day')) ,
-        // 'pickup_location' => 'Global M',
-        // 'channel_id' => '825274',
+        'pickup_location' => 'SHOWROOM',
+        'channel_id' => '244252',
         
-        'pickup_location' => 'Dot Com Solutions',
-        'channel_id' => '342406', // Replace with a valid channel ID
+        // 'pickup_location' => 'Dot Com Solutions',
+        // 'channel_id' => '342406', // Replace with a valid channel ID
         
-        'comment' => 'Test Order',
-        'reseller_name' => 'Dot Com Solutions',
+        'comment' => 'Order from E-Commerce Website',
+        'reseller_name' => 'Dominion Hardware Stores',
         'company_name' => $shipping_arr['name'],
         'billing_customer_name' => $shipping_arr['name'],
         'billing_last_name' => '',
