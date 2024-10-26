@@ -143,7 +143,7 @@ class OrderController extends Controller
         }
 
         $address = Address::where('id', $carts[0]['address_id'])->first();
-
+        $weight = 0;
         $shippingAddress = [];
         if ($address != null) {
             $shippingAddress['name']        = Auth::user()->name;
@@ -199,6 +199,11 @@ class OrderController extends Controller
             $order->date = strtotime('now');
             $order->save();
 
+            $shiprocket_payment_mode = 'Prepaid';
+            if($order->payment_type == 'cash_on_delivery'){
+                $shiprocket_payment_mode = 'cod';
+            }
+
             $subtotal = 0;
             $tax = 0;
             $shipping = 0;
@@ -224,6 +229,8 @@ class OrderController extends Controller
                     $product_stock->save();
                 }
 
+                $weight += $product->weight * $cartItem['quantity'];
+
                 $order_detail = new OrderDetail;
                 $order_detail->order_id = $order->id;
                 $order_detail->seller_id = $product->user_id;
@@ -237,6 +244,15 @@ class OrderController extends Controller
 
                 $shipping += $order_detail->shipping_cost;
                 //End of storing shipping cost
+                $line_item_sr['name'] = $product->name;
+                $line_item_sr['sku'] = $product->sku;
+                $line_item_sr['units'] = $cartItem['quantity'];
+                $line_item_sr['selling_price'] =cart_product_price($cartItem, $product, false, false)+cart_product_tax($cartItem, $product, false);
+                $line_item_sr['discount'] = 0;
+                $line_item_sr['tax'] = "18";
+                $line_item_sr['hsn'] = "";
+
+                $order_items_arr[] = $line_item_sr;
 
                 $order_detail->quantity = $cartItem['quantity'];
 
@@ -275,20 +291,29 @@ class OrderController extends Controller
                 }
             }
             $cod_fee = 0;
+            $shiping=0;
 
             if($request->payment_option == 'cash_on_delivery')
             {
                 if ($subtotal <= 5000) { // Example: charge a COD fee for orders over 1000
-                    $cod_fee = 100; // Example COD fee
+                    $cod_fee = 100;
+                    // $shiping = 100;  // Example COD fee
                 }else{
                     $cod_fee = $subtotal * 0.02;
+                    // $shipping = $subtotal * 0.02;
                 }
-                $tax += (0.18 * $cod_fee);
+                // $tax += (0.18 * $cod_fee);
+            }
+
+            if ($subtotal < 5000) {
+                $shiping = 100;  // Example COD fee
+            }else{
+                $shipping = $subtotal * 0.02;
             }
 
             $tax += (0.18 * $shipping);
 
-            $grand_total = $subtotal + $tax + $shipping + $cod_fee;
+            $grand_total = $subtotal + $tax + $shipping + $cod_fee ;
             $rounded_grand_total = round($grand_total);
             $round_off = $rounded_grand_total - $grand_total;
 
@@ -309,6 +334,129 @@ class OrderController extends Controller
             }
 
             $combined_order->grand_total += $order->grand_total;
+
+              // if (!isset($shippingAddress['name'])) {
+            //     throw new Exception("Undefined array key 'name' in \$shippingAddress");
+            // }
+
+            // Shiprocket Integration
+            $curl = curl_init();
+
+            curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/auth/login',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            // CURLOPT_POSTFIELDS =>'{
+            //     "email": "globalmark52@gmail.com",
+            //     "password": "yp$duLBeZjE7qAn"
+            // }',
+            CURLOPT_POSTFIELDS =>'{
+                "email": "dotcomsolutions.apps@gmail.com",
+                "password": "Rh]DqqHR4/<=#"
+            }',
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+            ));
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+
+            $responseArray = json_decode($response, true);
+            $token = $responseArray['token'];
+
+            $order->token = $token;
+
+            // "pickup_location" : "Dot Com Solutions",
+            // "channel_id" : "342406", 
+
+            // "pickup_location": "Global M",
+            // "channel_id": "825274",
+
+            // if($shipping = 100){
+            //     $order->grand_total=$order->grand_total-$shipping;
+            // }
+
+            $post_fields = '{
+                "order_id": "'.$order->code.'A'.'",
+                "order_date": "'.date('Y-m-d', $order->date).'",
+                
+
+                "comment": "Test Order",
+
+                "pickup_location" : "Dot Com Solutions",
+            "channel_id" : "342406", 
+
+                "reseller_name": "Dominion",
+                "company_name": "'.$shippingAddress['name'].'",
+                "billing_customer_name": "'.$shippingAddress['name'].' ",
+                "billing_last_name": "",
+                "billing_address": "'.$shippingAddress['address'].'",
+                "billing_address_2": "",
+                "billing_isd_code": "",
+                "billing_city": "'.$shippingAddress['city'].'",
+                "billing_pincode": "'.$shippingAddress['postal_code'].'",
+                "billing_state": "'.$shippingAddress['state'].'",
+                "billing_country": "'.$shippingAddress['country'].'",
+                "billing_email": "'.$shippingAddress['email'].'",
+                "billing_phone": "'.$shippingAddress['phone'].'",
+                "billing_alternate_phone":"",
+                "shipping_is_billing": true,
+                "shipping_customer_name": "",
+                "shipping_last_name": "",
+                "shipping_address": "",
+                "shipping_address_2": "",
+                "shipping_city": "",
+                "shipping_pincode": "",
+                "shipping_country": "",
+                "shipping_state": "",
+                "shipping_email": "",
+                "shipping_phone": "",
+                "order_items": '.json_encode($order_items_arr).',
+                "payment_method": "'.$shiprocket_payment_mode.'",
+                "shipping_charges": "'.$shipping.'",
+                "cod_charges":"'.$cod_fee.'",
+                "giftwrap_charges": 0,
+                "transaction_charges": 0,
+                "total_discount": 0,
+                "sub_total": '.(($shipping == 100) ? ($order->grand_total - $shipping) : $order->grand_total).',
+                "length": 10,
+                "breadth": 10,
+                "height": 15,
+                "weight": '.$weight.',
+                "ewaybill_no": "",
+                "customer_gstin": "",
+                "invoice_number":"",
+                "order_type":""
+            }';
+
+            //Punch Order to Shiprocket
+            $curl = curl_init();
+
+            curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/orders/create/adhoc',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $post_fields,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Authorization: Bearer '.$token
+            ),
+            ));
+
+            $response = curl_exec($curl);
+
+            curl_close($curl);
 
             $order->save();
         }
