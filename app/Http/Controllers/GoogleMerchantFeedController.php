@@ -25,11 +25,10 @@ class GoogleMerchantFeedController extends Controller
         $channel->addChild('link', url('/'));
         $channel->addChild('description', 'Matrix+');
 
-        // Filter the products by the specified IDs, brand_id, and published status
-        $filteredProducts = $products->filter(function($product) use ($targetProductIds) {
+        // Filter the products by brand_id and published status only
+        $filteredProducts = $products->filter(function($product) {
             return $product->brand_id == 1 && $product->published == 1;
         });
-
 
         // Iterate through products and their stocks
         foreach ($filteredProducts as $product) {
