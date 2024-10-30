@@ -187,15 +187,34 @@ class AdminController extends Controller
         // $data['total_sale'] = Order::where('delivery_status', 'delivered')->sum('grand_total');
         $data['total_sale'] = Order::where('delivery_status', '!=', 'cancelled')->sum('grand_total');
         $data['sale_this_month'] = Order::whereMonth('created_at', Carbon::now()->month)->sum('grand_total');
-        $data['admin_sale_this_month'] = Order::select(DB::raw('COALESCE(users.user_type, "admin") as user_type'), DB::raw('COALESCE(SUM(grand_total), 0) as total_sale'))
+        // $data['admin_sale_this_month'] = Order::select(DB::raw('COALESCE(users.user_type, "admin") as user_type'), DB::raw('COALESCE(SUM(grand_total), 0) as total_sale'))
+        //     ->leftJoin('users', 'orders.seller_id', '=', 'users.id')
+        //     ->whereRaw('users.user_type = "admin"')
+        //     ->whereMonth('orders.created_at', Carbon::now()->month)
+        //     ->first();
+        // $data['seller_sale_this_month'] = Order::select(DB::raw('COALESCE(users.user_type, "seller") as user_type'), DB::raw('COALESCE(SUM(grand_total), 0) as total_sale'))
+        //     ->leftJoin('users', 'orders.seller_id', '=', 'users.id')
+        //     ->whereRaw('users.user_type = "seller"')
+        //     ->whereMonth('orders.created_at', Carbon::now()->month)
+        //     ->first();
+        $data['admin_sale_this_month'] = Order::select(
+                DB::raw('COALESCE(users.user_type, "admin") as user_type'),
+                DB::raw('COALESCE(SUM(grand_total), 0) as total_sale')
+            )
             ->leftJoin('users', 'orders.seller_id', '=', 'users.id')
             ->whereRaw('users.user_type = "admin"')
             ->whereMonth('orders.created_at', Carbon::now()->month)
+            ->where('delivery_status', '!=', 'cancelled')
             ->first();
-        $data['seller_sale_this_month'] = Order::select(DB::raw('COALESCE(users.user_type, "seller") as user_type'), DB::raw('COALESCE(SUM(grand_total), 0) as total_sale'))
+        
+        $data['seller_sale_this_month'] = Order::select(
+                DB::raw('COALESCE(users.user_type, "seller") as user_type'),
+                DB::raw('COALESCE(SUM(grand_total), 0) as total_sale')
+            )
             ->leftJoin('users', 'orders.seller_id', '=', 'users.id')
             ->whereRaw('users.user_type = "seller"')
             ->whereMonth('orders.created_at', Carbon::now()->month)
+            ->where('delivery_status', '!=', 'cancelled')
             ->first();
         $sales_stat = Order::select('orders.user_id', 'users.name', 'users.user_type', 'users.avatar_original', DB::raw('SUM(grand_total) as total'), DB::raw('DATE_FORMAT(orders.created_at, "%M") AS month'))
             ->leftJoin('users', 'orders.seller_id', '=', 'users.id')
@@ -204,6 +223,7 @@ class AdminController extends Controller
             ->groupBy('month')
             ->orderBy(DB::raw('MONTH(orders.created_at)'), 'asc')
             ->get();
+        
             // ->orWhereRaw('users.user_type = "seller"')
             // ->groupBy('users.user_type')
         $new_stat = [];
