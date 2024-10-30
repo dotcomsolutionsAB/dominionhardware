@@ -186,7 +186,11 @@ class AdminController extends Controller
             ->get();
         // $data['total_sale'] = Order::where('delivery_status', 'delivered')->sum('grand_total');
         $data['total_sale'] = Order::where('delivery_status', '!=', 'cancelled')->sum('grand_total');
-        $data['sale_this_month'] = Order::whereMonth('created_at', Carbon::now()->month)->sum('grand_total');
+        $data['sale_this_month'] = Order::whereMonth('created_at', Carbon::now()->month)
+            ->where('delivery_status', '!=', 'cancelled')
+            ->sum('grand_total');
+
+        // $data['sale_this_month'] = Order::whereMonth('created_at', Carbon::now()->month)->sum('grand_total');
         // $data['admin_sale_this_month'] = Order::select(DB::raw('COALESCE(users.user_type, "admin") as user_type'), DB::raw('COALESCE(SUM(grand_total), 0) as total_sale'))
         //     ->leftJoin('users', 'orders.seller_id', '=', 'users.id')
         //     ->whereRaw('users.user_type = "admin"')
