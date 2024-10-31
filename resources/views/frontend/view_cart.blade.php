@@ -68,6 +68,38 @@
             }, function(data) {
                 updateNavCart(data.nav_cart_view, data.cart_count);
                 $('#cart-summary').html(data.cart_view);
+                AIZ.extra.plusMinus();
+            });
+        }
+
+        // Cart item selection
+        $(document).on("change", ".check-all", function() {
+            $('.check-one:checkbox').prop('checked', this.checked);
+            updateCartStatus();
+        });
+        $(document).on("change", ".check-seller", function() {
+            var value = this.value;
+            $('.check-one-'+value+':checkbox').prop('checked', this.checked);
+            updateCartStatus();
+        });
+        $(document).on("change", ".check-one[name='id[]']", function(e) {
+            e.preventDefault();
+            updateCartStatus();
+        });
+        function updateCartStatus() {
+            $('.aiz-refresh').addClass('active');
+            let product_id = [];
+            $(".check-one[name='id[]']:checked").each(function() {
+                product_id.push($(this).val());
+            });
+
+            $.post('{{ route('cart.updateCartStatus') }}', {
+                _token: AIZ.data.csrf,
+                product_id: product_id
+            }, function(data) {
+                $('#cart-summary').html(data);
+                AIZ.extra.plusMinus();
+                $('.aiz-refresh').removeClass('active');
             });
         }
     </script>
