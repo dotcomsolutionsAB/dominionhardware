@@ -287,6 +287,7 @@ Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function ()
             Route::get('/payment-select', 'get_payment_info')->name('checkout.payment_info');
             Route::post('/apply-coupon-code', 'apply_coupon_code')->name('checkout.apply_coupon_code');
             Route::post('/remove-coupon-code', 'remove_coupon_code')->name('checkout.remove_coupon_code');
+            Route::post('/guest-customer-info-check', 'guestCustomerInfoCheck')->name('guest_customer_info_check');
             //Club point
             Route::post('/apply-club-point', 'apply_club_point')->name('checkout.apply_club_point');
             Route::post('/remove-club-point', 'remove_club_point')->name('checkout.remove_club_point');

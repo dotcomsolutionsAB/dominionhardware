@@ -242,7 +242,7 @@
                             @if (Auth::check() || get_Setting('guest_checkout_activation') == 1) onclick="addToCart()" @else onclick="showLoginModal()" @endif
                         >
                             <i class="la la-shopping-cart"></i>
-                            <span class="d-none d-md-inline-block">{{ translate('Add to cart')}}</span>
+                            <span class="d-none d-md-inline-block">{{ translate('Add to carts')}}</span>
                         </button>
                     @elseif($qty > 0)
                         @if ($product->external_link != null)
@@ -255,7 +255,7 @@
                                 @if (Auth::check() || get_Setting('guest_checkout_activation') == 1) onclick="addToCart()" @else onclick="showLoginModal()" @endif
                             >
                                 <i class="la la-shopping-cart"></i>
-                                <span class="d-none d-md-inline-block">{{ translate('Add to cart')}}</span>
+                                <span class="d-none d-md-inline-block">{{ translate('Add to carts')}}</span>
                             </button>
                         @endif
                     @endif
