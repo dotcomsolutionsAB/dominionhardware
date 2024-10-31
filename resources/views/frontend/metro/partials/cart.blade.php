@@ -1,4 +1,4 @@
-@php
+{{-- @php
     $total = 0;
     $carts = get_user_cart();
     if(count($carts) > 0) {
@@ -7,8 +7,8 @@
             $total = $total + cart_product_price($cartItem, $product, false) * $cartItem['quantity'];
         }
     }
-@endphp
-<!-- @php
+@endphp --}}
+@php
   if (auth()->user() != null) {
       $user_id = Auth::user()->id;
       $cart = \App\Models\Cart::where('user_id', $user_id)->get();
@@ -19,7 +19,7 @@
       }
   }
   
-@endphp -->
+@endphp
 <!-- Cart button with cart count -->
 <a href="javascript:void(0)" class="d-flex align-items-center text-dark px-3 h-100" data-toggle="dropdown" data-display="static" title="{{translate('Cart')}}">
     <span class="mr-2">
