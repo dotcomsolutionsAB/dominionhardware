@@ -15,6 +15,7 @@ class CartController extends Controller
 {
     public function index(Request $request)
     {
+        // For temp user
         if (auth()->user() != null) {
             $user_id = Auth::user()->id;
             if ($request->session()->get('temp_user_id')) {
@@ -34,7 +35,10 @@ class CartController extends Controller
             // $carts = Cart::where('temp_user_id', $temp_user_id)->get();
             $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
         }
-
+        if (count($carts) > 0) {
+            $carts->toQuery()->update(['shipping_cost' => 0]);
+            $carts = $carts->fresh();
+        }
         
         return view('frontend.view_cart', compact('carts'));
 
@@ -55,7 +59,23 @@ class CartController extends Controller
 
     public function addToCart(Request $request)
     {
-        $carts = Cart::where('user_id', auth()->user()->id)->get();
+        // For temp user
+        $authUser = auth()->user();
+        if($authUser != null) {
+            $user_id = $authUser->id;
+            $data['user_id'] = $user_id;
+            $carts = Cart::where('user_id', $user_id)->get();
+        } else {
+            if($request->session()->get('temp_user_id')) {
+                $temp_user_id = $request->session()->get('temp_user_id');
+            } else {
+                $temp_user_id = bin2hex(random_bytes(10));
+                $request->session()->put('temp_user_id', $temp_user_id);
+            }
+            $data['temp_user_id'] = $temp_user_id;
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
+        // $carts = Cart::where('user_id', auth()->user()->id)->get();
         $check_auction_in_cart = CartUtility::check_auction_in_cart($carts);
         $product = Product::find($request->id);
         $carts = array();
@@ -83,6 +103,23 @@ class CartController extends Controller
         //check the color enabled or disabled for the product
         $str = CartUtility::create_cart_variant($product, $request->all());
         $product_stock = $product->stocks->where('variant', $str)->first();
+
+        // For temp user
+        if($authUser != null) {
+            $user_id = $authUser->id;
+            $cart = Cart::firstOrNew([
+                'variation' => $str,
+                'user_id' => $user_id,
+                'product_id' => $request['id']
+            ]);
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $cart = Cart::firstOrNew([
+                'variation' => $str,
+                'temp_user_id' => $temp_user_id,
+                'product_id' => $request['id']
+            ]);
+        }
 
         $cart = Cart::firstOrNew([
             'variation' => $str,
@@ -115,7 +152,15 @@ class CartController extends Controller
         
         CartUtility::save_cart_data($cart, $product, $price, $tax, $quantity);
         
-        $carts = Cart::where('user_id', auth()->user()->id)->get();
+        // For temp user
+        if($authUser != null) {
+            $user_id = $authUser->id;
+            $carts = Cart::where('user_id', $user_id)->get();
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
+        // $carts = Cart::where('user_id', auth()->user()->id)->get();
         return array(
             'status' => 1,
             'cart_count' => count($carts),
@@ -132,6 +177,7 @@ class CartController extends Controller
             $user_id = Auth::user()->id;
             $carts = Cart::where('user_id', $user_id)->get();
         } else {
+            // For temp user
             $temp_user_id = $request->session()->get('temp_user_id');
             $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
@@ -206,5 +252,53 @@ class CartController extends Controller
         );
     }
 
+    // public function updateCartStatus(Request $request)
+    // {
+    //     $product_ids = $request->product_id;
+
+    //     if (auth()->user() != null) {
+    //         $user_id = Auth::user()->id;
+    //         $carts = Cart::where('user_id', $user_id)->get();
+    //     } else {
+    //         $temp_user_id = $request->session()->get('temp_user_id');
+    //         $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+    //     }
+
+    //     $coupon_applied = $carts->toQuery()->where('coupon_applied', 1)->first();
+    //     if($coupon_applied != null){
+    //         $owner_id = $coupon_applied->owner_id;
+    //         $coupon_code = $coupon_applied->coupon_code;
+    //         $user_carts = $carts->toQuery()->where('owner_id', $owner_id)->get();
+    //         $coupon_discount = $user_carts->toQuery()->sum('discount');
+    //         $user_carts->toQuery()->update(
+    //             [
+    //                 'discount' => 0.00,
+    //                 'coupon_code' => '',
+    //                 'coupon_applied' => 0
+    //             ]
+    //         );
+    //     }
+
+    //     $carts->toQuery()->update(['status' => 0]);
+    //     if($product_ids != null){
+    //         if($coupon_applied != null){
+    //             $active_user_carts = $user_carts->toQuery()->whereIn('product_id', $product_ids)->get();
+    //             if (count($active_user_carts) > 0) {
+    //                 $active_user_carts->toQuery()->update(
+    //                     [
+    //                         'discount' => $coupon_discount / count($active_user_carts),
+    //                         'coupon_code' => $coupon_code,
+    //                         'coupon_applied' => 1
+    //                     ]
+    //                 );
+    //             }
+    //         }
+
+    //         $carts->toQuery()->whereIn('product_id', $product_ids)->update(['status' => 1]);
+    //     }
+    //     $carts = $carts->fresh();
+
+    //     return view('frontend.partials.cart.cart_details', compact('carts'))->render();
+    // }
     
 }
