@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Address;
+use App\Models\Carrier;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
