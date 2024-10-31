@@ -16,6 +16,11 @@ class CartController extends Controller
     public function summary()
     {
         //$user = User::where('id', auth()->user()->id)->first();
+        // $user  = $request->user_id != null ? User::where('id', $request->user_id)->first() : null;
+        $items = ($user != null) ?
+                Cart::where('user_id', $user->id)->active()->get() :
+                ($request->has('temp_user_id') ? Cart::where('temp_user_id', $request->temp_user_id)->active()->get() : [] );
+
         $items = auth()->user()->carts;
         if ($items->isEmpty()) {
             return response()->json([
@@ -59,7 +64,11 @@ class CartController extends Controller
 
     public function count()
     {
-        $items = auth()->user()->carts;
+        $user_id = $request->user_id;
+        $temp_user_id = $request->temp_user_id;
+        $items  = ($user_id != null) ?
+                    Cart::where('user_id', $user_id)->active()->get() :
+                    ($temp_user_id != null ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [] );
 
         return response()->json([
             'count' => sizeof($items),
@@ -69,7 +78,14 @@ class CartController extends Controller
 
     public function getList()
     {
-        $owner_ids = Cart::where('user_id', auth()->user()->id)->select('owner_id')->groupBy('owner_id')->pluck('owner_id')->toArray();
+        // $owner_ids = Cart::where('user_id', auth()->user()->id)->select('owner_id')->groupBy('owner_id')->pluck('owner_id')->toArray();
+        $user_id = $request->user_id;
+        $temp_user_id = $request->temp_user_id;
+
+        $owner_ids = ($user_id != null) ?
+            Cart::where('user_id', $user_id)->active()->select('owner_id')->groupBy('owner_id')->pluck('owner_id')->toArray() :
+            ($temp_user_id != null ? Cart::where('temp_user_id', $temp_user_id)->active()->select('owner_id')->groupBy('owner_id')->pluck('owner_id')->toArray() : [] );
+
         $currency_symbol = currency_symbol();
         $shops = [];
         $sub_total = 0.00;
@@ -77,7 +93,10 @@ class CartController extends Controller
         if (!empty($owner_ids)) {
             foreach ($owner_ids as $owner_id) {
                 $shop = array();
-                $shop_items_raw_data = Cart::where('user_id', auth()->user()->id)->where('owner_id', $owner_id)->get()->toArray();
+                $shop_items_raw_data = ($user_id != null) ?
+                    Cart::where('user_id', $user_id)->where('owner_id', $owner_id)->active()->get()->toArray() :
+                    ($temp_user_id != null ? Cart::where('temp_user_id', $temp_user_id)->where('owner_id', $owner_id)->active()->get()->toArray() : [] );
+                // $shop_items_raw_data = Cart::where('user_id', auth()->user()->id)->where('owner_id', $owner_id)->get()->toArray();
                 $shop_items_data = array();
                 if (!empty($shop_items_raw_data)) {
                     foreach ($shop_items_raw_data as $shop_items_raw_data_item) {
@@ -138,19 +157,33 @@ class CartController extends Controller
 
     public function add(Request $request)
     {
-        $carts = Cart::where('user_id', auth()->user()->id)->get();
+        // $carts = Cart::where('user_id', auth()->user()->id)->get();
+        $user_id =  $request->user_id != null ? $request->user_id : null;
+        $temp_user_id =   $request->temp_user_id != null ? $request->temp_user_id : null;
+        if($user_id != null) {
+            $carts = Cart::where('user_id', $user_id)->active()->get();
+        }
+        else {
+            if($temp_user_id == null){
+                $temp_user_id = bin2hex(random_bytes(10));
+            }
+            $carts = Cart::where('temp_user_id', $temp_user_id)->active()->get();
+        }
+
         $check_auction_in_cart = CartUtility::check_auction_in_cart($carts);
         $product = Product::findOrFail($request->id);
 
         if ($check_auction_in_cart && $product->auction_product == 0) {
             return response()->json([
                 'result' => false,
+                'temp_user_id' => $temp_user_id,
                 'message' => translate('Remove auction product from cart to add this product.')
             ], 200);
         }
         if ($check_auction_in_cart == false && count($carts) > 0 && $product->auction_product == 1) {
             return response()->json([
                 'result' => false,
+                'temp_user_id' => $temp_user_id,
                 'message' => translate('Remove other products from cart to add this auction product.')
             ], 200);
         }
@@ -158,6 +191,7 @@ class CartController extends Controller
         if ($product->min_qty > $request->quantity) {
             return response()->json([
                 'result' => false,
+                'temp_user_id' => $temp_user_id,
                 'message' => translate("Minimum") . " {$product->min_qty} " . translate("item(s) should be ordered")
             ], 200);
         }
@@ -168,11 +202,19 @@ class CartController extends Controller
 
         $product_stock = $product->stocks->where('variant', $variant)->first();
 
-        $cart = Cart::firstOrNew([
-            'variation' => $variant,
-            'user_id' => auth()->user()->id,
-            'product_id' => $request['id']
-        ]);
+        if($user_id != null) {
+            $cart = Cart::firstOrNew([
+                'variation' => $variant,
+                'user_id' => $user_id,
+                'product_id' => $request['id']
+            ]);
+        } else {
+            $cart = Cart::firstOrNew([
+                'variation' => $variant,
+                'temp_user_id' => $temp_user_id,
+                'product_id' => $request['id']
+            ]);
+        }
 
         $variant_string = $variant != null && $variant != "" ? translate("for") . " ($variant)" : "";
 
@@ -187,11 +229,13 @@ class CartController extends Controller
                 if ($product_stock->qty == 0) {
                     return response()->json([
                         'result' => false,
+                        'temp_user_id' => $temp_user_id,
                         'message' => translate("Stock out")
                     ], 200);
                 } else {
                     return response()->json([
                         'result' => false,
+                        'temp_user_id' => $temp_user_id,
                         'message' => translate("Only") . " {$product_stock->qty} " . translate("item(s) are available") . " {$variant_string}"
                     ], 200);
                 }
@@ -199,6 +243,7 @@ class CartController extends Controller
             if ($product->digital == 1 && ($cart->product_id == $product->id)) {
                 return response()->json([
                     'result' => false,
+                    'temp_user_id' => $temp_user_id,
                     'message' => translate('Already added this product')
                 ]);
             }
@@ -215,6 +260,7 @@ class CartController extends Controller
 
         return response()->json([
             'result' => true,
+            'temp_user_id' => $temp_user_id,
             'message' => translate('Product added to cart successfully')
         ]);
     }
@@ -283,5 +329,33 @@ class CartController extends Controller
     {
         Cart::destroy($id);
         return response()->json(['result' => true, 'message' => translate('Product is successfully removed from your cart')], 200);
+    }
+    public function guestCustomerInfoCheck(Request $request){
+        $user = addon_is_activated('otp_system') ?
+                User::where('email', $request->email)->orWhere('phone','+'.$request->phone)->first() :
+                User::where('email', $request->email)->first();
+
+        return response()->json([
+            'result' => ($user != null) ? true : false
+        ]);
+    }
+    public function updateCartStatus(Request $request)
+    {
+        $product_ids = $request->product_ids;
+        $user_id = $request->user_id;
+        $temp_user_id = $request->temp_user_id;
+        $carts  = ($user_id != null) ?
+                    Cart::where('user_id', $user_id)->get() :
+                    ($temp_user_id != null ? Cart::where('temp_user_id', $temp_user_id)->get() : [] );
+
+        $carts->toQuery()->update(['status' => 0]);
+        if($product_ids != null){
+            $carts->toQuery()->whereIn('product_id', $product_ids)->update(['status' => 1]);
+        }
+
+        return response()->json([
+            'result' => true,
+            'message' => translate('Cart status updated successfully')
+        ]);
     }
 }
