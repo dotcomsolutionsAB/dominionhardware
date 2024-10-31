@@ -1,12 +1,24 @@
+// @php
+//     $total = 0;
+//     $carts = get_user_cart();
+//     if(count($carts) > 0) {
+//         foreach ($carts as $key => $cartItem) {
+//             $product = get_single_product($cartItem['product_id']);
+//             $total = $total + cart_product_price($cartItem, $product, false) * $cartItem['quantity'];
+//         }
+//     }
+// @endphp
 @php
-    $total = 0;
-    $carts = get_user_cart();
-    if(count($carts) > 0) {
-        foreach ($carts as $key => $cartItem) {
-            $product = get_single_product($cartItem['product_id']);
-            $total = $total + cart_product_price($cartItem, $product, false) * $cartItem['quantity'];
-        }
-    }
+  if (auth()->user() != null) {
+      $user_id = Auth::user()->id;
+      $cart = \App\Models\Cart::where('user_id', $user_id)->get();
+  } else {
+      $temp_user_id = Session()->get('temp_user_id');
+      if ($temp_user_id) {
+          $cart = \App\Models\Cart::where('temp_user_id', $temp_user_id)->get();
+      }
+  }
+  
 @endphp
 <!-- Cart button with cart count -->
 <a href="javascript:void(0)" class="d-flex align-items-center text-dark px-3 h-100" data-toggle="dropdown" data-display="static" title="{{translate('Cart')}}">
