@@ -4,7 +4,9 @@
 
 namespace App\Http\Controllers\Api\V2;
 
+use Mail;
 use App\Http\Controllers\OTPVerificationController;
+use App\Mail\GuestAccountOpeningMailManager;
 use App\Models\BusinessSetting;
 use App\Models\Customer;
 use Illuminate\Http\Request;
@@ -93,7 +95,8 @@ class AuthController extends Controller
         //create token
         $user->createToken('tokens')->plainTextToken;
 
-        return $this->loginSuccess($user);
+        $tempUserId = $request->has('temp_user_id') ? $request->temp_user_id : null;
+        return $this->loginSuccess($user, '', $tempUserId);
     }
 
     public function resendCode()
@@ -201,10 +204,12 @@ class AuthController extends Controller
             if (!$user->banned) {
                 if (Hash::check($request->password, $user->password)) {
 
+                    $tempUserId = $request->has('temp_user_id') ? $request->temp_user_id : null;
+                    return $this->loginSuccess($user,'', $tempUserId);
                     // if ($user->email_verified_at == null) {
                     //     return response()->json(['result' => false, 'message' => translate('Please verify your account'), 'user' => null], 401);
                     // }
-                    return $this->loginSuccess($user);
+                    // return $this->loginSuccess($user);
                 } else {
                     return response()->json(['result' => false, 'message' => translate('Unauthorized'), 'user' => null], 401);
                 }
@@ -320,11 +325,83 @@ class AuthController extends Controller
         }
     }
 
+    // Guest user Account Create
+    public function guestUserAccountCreate(Request $request)
+    {
+        $success = 1;
+        $password = substr(hash('sha512', rand()), 0, 8);
+        $isEmailVerificationEnabled = get_setting('email_verification');
+
+        // User Create
+        $user = new User();
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->phone = addon_is_activated('otp_system') ? $request->phone : null;
+        $user->password = Hash::make($password);
+        $user->email_verified_at = $isEmailVerificationEnabled != 1 ? date('Y-m-d H:m:s') : null;
+        $user->save();
+
+        // Account Opening and verification(if activated) eamil send
+        $array['email'] = $user->email;
+        $array['password'] = $password;
+        $array['subject'] = translate('Account Opening Email');
+        $array['from'] = env('MAIL_FROM_ADDRESS');
+
+        try {
+            Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
+            if($isEmailVerificationEnabled == 1){
+                $user->notify(new AppEmailVerificationNotification());
+            }
+        } catch (\Exception $e) {
+            $success = 0;
+            $user->delete();
+        }
+
+        if($success == 0){
+            return response()->json([
+                'result' => false,
+                'message' => translate('Something went wrong!')
+            ]);
+        }
+
+        // User Address Create
+        $address = new Address();
+        $address->user_id       = $user->id;
+        $address->address       = $request->address;
+        $address->country_id    = $request->country_id;
+        $address->state_id      = $request->state_id;
+        $address->city_id       = $request->city_id;
+        $address->postal_code   = $request->postal_code;
+        $address->phone         = $request->phone;
+        $address->longitude     = $request->longitude;
+        $address->latitude      = $request->latitude;
+        $address->save();
+
+        Cart::where('temp_user_id', $request->temp_user_id)
+            ->update([
+                'user_id' => $user->id,
+                'temp_user_id' => null,
+                'address_id' => $address->id
+            ]);
+
+        //create token
+        $user->createToken('tokens')->plainTextToken;
+
+        return $this->loginSuccess($user);
+    }
+    
     public function loginSuccess($user, $token = null)
     {
 
         if (!$token) {
             $token = $user->createToken('API Token')->plainTextToken;
+        }
+        if($tempUserId != null){
+            Cart::where('temp_user_id', $tempUserId)
+                ->update([
+                    'user_id' => $user->id,
+                    'temp_user_id' => null
+                ]);
         }
         return response()->json([
             'result' => true,
