@@ -273,6 +273,18 @@ Route::group(['middleware' => ['user', 'verified', 'unbanned']], function () {
 
     Route::get('/all-notifications', [NotificationController::class, 'index'])->name('all-notifications');
 });
+Route::get('/debug-guest-checkout', function (Request $request) {
+    $guestCheckoutActivation = get_setting('guest_checkout_activation');
+    $tempUserId = $request->session()->get('temp_user_id');
+    $isLoggedIn = auth()->check();
+
+    return response()->json([
+        'guest_checkout_activation' => $guestCheckoutActivation,
+        'temp_user_id' => $tempUserId,
+        'is_logged_in' => $isLoggedIn,
+    ]);
+});
+
 
 Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function () {
 

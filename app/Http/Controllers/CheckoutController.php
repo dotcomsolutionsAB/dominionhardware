@@ -361,28 +361,32 @@ class CheckoutController extends Controller
     // }
     public function get_shipping_info(Request $request)
     {
-        // Check if guest checkout is enabled and user is not logged in
         if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
+            \Log::info('Redirected to login because guest checkout is disabled.');
             return redirect()->route('user.login');
         }
     
-        $carts = [];
-        if (auth()->user() != null) {
-            $user_id = Auth::user()->id;
+        if (auth()->check()) {
+            \Log::info('Authenticated user accessing shipping info.');
+            $user_id = Auth::id();
             $carts = Cart::where('user_id', $user_id)->get();
         } else {
+            \Log::info('Guest user accessing shipping info.');
             $temp_user_id = $request->session()->get('temp_user_id');
-            $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+            $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
         }
     
-        if ($carts && count($carts) > 0) {
-            $categories = Category::all();
-            return view('frontend.shipping_info', compact('categories', 'carts'));
+        if ($carts->isEmpty()) {
+            \Log::info('No items in cart.');
+            flash(translate('Your cart is empty'))->success();
+            return back();
         }
     
-        flash(translate('Your cart is empty'))->success();
-        return back();
+        \Log::info('Shipping info view loaded successfully.');
+        $categories = Category::all();
+        return view('frontend.shipping_info', compact('categories', 'carts'));
     }
+    
 
 
 
