@@ -293,7 +293,7 @@ Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function ()
         Route::controller(CheckoutController::class)->group(function () {
             Route::post('/apply-club-point', 'apply_club_point')->name('checkout.apply_club_point');
             Route::post('/remove-club-point', 'remove_club_point')->name('checkout.remove_club_point');
-            
+            Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
         });
     });
 });
@@ -311,7 +311,6 @@ Route::group(['prefix' => 'checkout'], function () {
         Route::post('/apply-coupon-code', 'apply_coupon_code')->name('checkout.apply_coupon_code'); // Apply coupon
         Route::post('/remove-coupon-code', 'remove_coupon_code')->name('checkout.remove_coupon_code'); // Remove coupon
         Route::post('/guest-customer-info-check', 'guestCustomerInfoCheck')->name('guest_customer_info_check'); // Guest checkout
-        Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
     });
 });
 

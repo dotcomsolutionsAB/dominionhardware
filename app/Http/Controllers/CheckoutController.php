@@ -143,11 +143,12 @@ class CheckoutController extends Controller
             }
         }
 
-        // if ($request->payment_option == null) {
-        //     flash(translate('There is no payment option is selected.'))->warning();
-        //     return redirect()->route('checkout');
-        // }
+        if ($request->payment_option == null && !session()->has('cod')) {
+            flash(translate('Please select a payment option.'))->warning();
+            return redirect()->route('checkout.shipping_info');
+        }
         
+
         $user = auth()->user();
         $carts = Cart::where('user_id', $user->id)->active()->get();
         // $carts = Cart::where('user_id', Auth::user()->id)->get();
@@ -791,22 +792,56 @@ class CheckoutController extends Controller
         return back();
     }
 
+    // public function order_confirmed()
+    // {
+    //     $combined_order = CombinedOrder::findOrFail(Session::get('combined_order_id'));
+
+    //     Cart::where('user_id', $combined_order->user_id)
+    //         ->delete();
+
+    //     //Session::forget('club_point');
+    //     //Session::forget('combined_order_id');
+
+    //     // foreach($combined_order->orders as $order){
+    //     //     NotificationUtility::sendOrderPlacedNotification($order);
+    //     // }
+
+    //     return view('frontend.order_confirmed', compact('combined_order'));
+    // }
     public function order_confirmed()
     {
-        $combined_order = CombinedOrder::findOrFail(Session::get('combined_order_id'));
+        // Check if combined_order_id exists in the session
+        if (!Session::has('combined_order_id')) {
+            // Redirect back with an error message if not found
+            flash(translate('Order confirmation failed. Please try again.'))->error();
+            return redirect()->route('checkout');
+        }
 
-        Cart::where('user_id', $combined_order->user_id)
-            ->delete();
+        // Retrieve the combined order
+        $combined_order = CombinedOrder::find(Session::get('combined_order_id'));
 
-        //Session::forget('club_point');
-        //Session::forget('combined_order_id');
+        // If the order was not found (safety check)
+        if (!$combined_order) {
+            flash(translate('Order not found. Please try again.'))->error();
+            return redirect()->route('checkout');
+        }
 
-        // foreach($combined_order->orders as $order){
+        // Delete the user's cart items after order is confirmed
+        Cart::where('user_id', $combined_order->user_id)->delete();
+
+        // Clear session data related to the order
+        Session::forget('club_point');
+        Session::forget('combined_order_id');
+
+        // Uncomment this to send notifications if needed
+        // foreach($combined_order->orders as $order) {
         //     NotificationUtility::sendOrderPlacedNotification($order);
         // }
 
+        // Display the order confirmation page
         return view('frontend.order_confirmed', compact('combined_order'));
     }
+
 
     public function guestCustomerInfoCheck(Request $request){
         $user = addon_is_activated('otp_system') ?
