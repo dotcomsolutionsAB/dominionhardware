@@ -152,66 +152,6 @@
                                     </div>
                                 </div>
                             </div>
-                        {{-- <!-- Guest Checkout Form for Shipping Info -->
-                            <div class="border bg-white p-4 mb-4">
-                                <h4>{{ translate('Guest Shipping Information') }}</h4>
-                                <input type="hidden" name="checkout_type" value="guest">
-                                <div class="form-group row">
-                                    <label class="col-md-3 col-form-label">{{ translate('Name') }}</label>
-                                    <div class="col-md-9">
-                                        <input type="text" class="form-control" name="guest_name" required>
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label class="col-md-3 col-form-label">{{ translate('Email') }}</label>
-                                    <div class="col-md-9">
-                                        <input type="email" class="form-control" name="guest_email" required>
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label class="col-md-3 col-form-label">{{ translate('Phone') }}</label>
-                                    <div class="col-md-9">
-                                        <input type="text" class="form-control" name="guest_phone" required>
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label class="col-md-3 col-form-label">{{ translate('Address') }}</label>
-                                    <div class="col-md-9">
-                                        <textarea class="form-control" name="guest_address" rows="3" required></textarea>
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label class="col-md-3 col-form-label">{{ translate('City') }}</label>
-                                    <div class="col-md-9">
-                                        <input type="text" class="form-control" name="guest_city" required>
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label class="col-md-3 col-form-label">{{ translate('Postal Code') }}</label>
-                                    <div class="col-md-9">
-                                        <input type="text" class="form-control" name="guest_postal_code" required>
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label class="col-md-3 col-form-label">{{ translate('Country') }}</label>
-                                    <div class="col-md-9">
-                                        <input type="text" class="form-control" name="guest_country" required>
-                                    </div>
-                                </div>
-
-                                <!-- Continue as Guest to Delivery Info -->
-                                <div class="row align-items-center">
-                                    <div class="col-md-6 text-center text-md-left order-1 order-md-0">
-                                        <a href="{{ route('home') }}" class="btn btn-link fs-14 fw-700 px-0">
-                                            <i class="las la-arrow-left fs-16"></i>
-                                            {{ translate('Return to shop')}}
-                                        </a>
-                                    </div>
-                                    <div class="col-md-6 text-center text-md-right">
-                                        <button type="submit" class="btn btn-primary fs-14 fw-700 rounded-0 px-4">{{ translate('Continue to Delivery Info')}}</button>
-                                    </div>
-                                </div>
-                            </div> --}}
                         @endif
                     </form>
                 </div>
