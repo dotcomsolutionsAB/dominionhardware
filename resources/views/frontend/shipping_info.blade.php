@@ -136,7 +136,7 @@
                                 </div>
                             @else
                                 <!-- Guest Shipping a address -->
-                                @include('frontend.partials.cart.guest_shipping_info')
+                                @include('frontend.guest_shipping_info')
                             @endif
                             <div class="row align-items-center">
                                 <!-- Return to shop -->
