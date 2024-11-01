@@ -410,13 +410,16 @@ Route::group(['middleware' => ['auth']], function () {
     //Address
     Route::resource('addresses', AddressController::class);
     Route::controller(AddressController::class)->group(function () {
-        Route::post('/get-states', 'getStates')->name('get-state');
-        Route::post('/get-cities', 'getCities')->name('get-city');
+        // Route::post('/get-states', 'getStates')->name('get-state');
+        // Route::post('/get-cities', 'getCities')->name('get-city');
         Route::post('/addresses/update/{id}', 'update')->name('addresses.update');
         Route::get('/addresses/destroy/{id}', 'destroy')->name('addresses.destroy');
         Route::get('/addresses/set-default/{id}', 'set_default')->name('addresses.set_default');
     });
 });
+// Place these routes outside of any auth middleware group
+Route::post('/get-states', [AddressController::class, 'getStates'])->name('get-state');
+Route::post('/get-cities', [AddressController::class, 'getCities'])->name('get-city');
 
 Route::resource('shops', ShopController::class)->middleware('handle-demo-login');
 
