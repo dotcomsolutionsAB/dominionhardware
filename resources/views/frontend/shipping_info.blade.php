@@ -69,7 +69,8 @@
         <div class="container">
             <div class="row cols-xs-space cols-sm-space cols-md-space">
                 <div class="col-xxl-8 col-xl-10 mx-auto">
-                    <form class="form-default" id="shipping_info_form" data-toggle="validator" action="{{ route('checkout.store_shipping_infostore') }}" role="form" method="POST">
+                    <form class="form-default" action="{{ route('checkout.store_shipping_infostore') }}" method="POST">
+                    {{-- <form class="form-default" id="shipping_info_form" data-toggle="validator" action="{{ route('checkout.store_shipping_infostore') }}" role="form" method="POST"> --}}
                         @csrf
                         <div class="border bg-white p-4 mb-4">
                             @if(Auth::check())
@@ -148,10 +149,11 @@
                                 </div>
                                 <!-- Continue to Delivery Info -->
                                 <div class="col-md-6 text-center text-md-right">
-                                    <button
-                                        @if(Auth::check()) type="submit" @else type="button" onclick="submitShippingInfoForm(this)" @endif
+                                    
+                                    <button type="submit" class="btn btn-primary fs-14 fw-700 rounded-0 px-4">{{ translate('Continue to Delivery Info')}}</button>
+                                        {{-- @if(Auth::check()) type="submit" @else type="button" onclick="submitShippingInfoForm(this)" @endif
                                         class="btn btn-primary fs-14 fw-700 rounded-0 px-4"
-                                    >
+                                    > --}}
                                         {{ translate('Continue to Delivery Info')}}
                                     </button>
                                 </div>
