@@ -198,57 +198,109 @@
             });
         }
         
+        // $(document).on('change', '[name=country_id]', function() {
+        //     var country_id = $(this).val();
+        //     get_states(country_id);
+        // });
+
+        // $(document).on('change', '[name=state_id]', function() {
+        //     var state_id = $(this).val();
+        //     get_city(state_id);
+        // });
+        
+        // function get_states(country_id) {
+        //     $('[name="state"]').html("");
+        //     $.ajax({
+        //         headers: {
+        //             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        //         },
+        //         url: "{{route('get-state')}}",
+        //         type: 'POST',
+        //         data: {
+        //             country_id  : country_id
+        //         },
+        //         success: function (response) {
+        //             var obj = JSON.parse(response);
+        //             if(obj != '') {
+        //                 $('[name="state_id"]').html(obj);
+        //                 AIZ.plugins.bootstrapSelect('refresh');
+        //             }
+        //         }
+        //     });
+        // }
+
+        // function get_city(state_id) {
+        //     $('[name="city"]').html("");
+        //     $.ajax({
+        //         headers: {
+        //             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        //         },
+        //         url: "{{route('get-city')}}",
+        //         type: 'POST',
+        //         data: {
+        //             state_id: state_id
+        //         },
+        //         success: function (response) {
+        //             var obj = JSON.parse(response);
+        //             if(obj != '') {
+        //                 $('[name="city_id"]').html(obj);
+        //                 AIZ.plugins.bootstrapSelect('refresh');
+        //             }
+        //         }
+        //     });
+        // }
         $(document).on('change', '[name=country_id]', function() {
             var country_id = $(this).val();
             get_states(country_id);
         });
 
-        $(document).on('change', '[name=state_id]', function() {
-            var state_id = $(this).val();
-            get_city(state_id);
-        });
-        
-        function get_states(country_id) {
-            $('[name="state"]').html("");
-            $.ajax({
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                url: "{{route('get-state')}}",
-                type: 'POST',
-                data: {
-                    country_id  : country_id
-                },
-                success: function (response) {
-                    var obj = JSON.parse(response);
-                    if(obj != '') {
-                        $('[name="state_id"]').html(obj);
-                        AIZ.plugins.bootstrapSelect('refresh');
-                    }
-                }
-            });
-        }
+$(document).on('change', '[name=state_id]', function() {
+    var state_id = $(this).val();
+    get_city(state_id);
+});
 
-        function get_city(state_id) {
-            $('[name="city"]').html("");
-            $.ajax({
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                url: "{{route('get-city')}}",
-                type: 'POST',
-                data: {
-                    state_id: state_id
-                },
-                success: function (response) {
-                    var obj = JSON.parse(response);
-                    if(obj != '') {
-                        $('[name="city_id"]').html(obj);
-                        AIZ.plugins.bootstrapSelect('refresh');
-                    }
-                }
-            });
+function get_states(country_id) {
+    $('[name="state_id"]').html(""); // Update the state dropdown
+    $.ajax({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        url: "{{ route('get-state') }}",
+        type: 'POST',
+        data: {
+            country_id: country_id
+        },
+        success: function(response) {
+            var states = JSON.parse(response);
+            if(states != '') {
+                $('[name="state_id"]').html(states);
+                AIZ.plugins.bootstrapSelect('refresh'); // Refresh the dropdown with AIZ plugin if used
+            }
         }
+    });
+}
+
+function get_city(state_id) {
+    $('[name="city_id"]').html(""); // Update the city dropdown
+    $.ajax({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        url: "{{ route('get-city') }}",
+        type: 'POST',
+        data: {
+            state_id: state_id
+        },
+        success: function(response) {
+            var cities = JSON.parse(response);
+            if(cities != '') {
+                $('[name="city_id"]').html(cities);
+                AIZ.plugins.bootstrapSelect('refresh'); // Refresh the dropdown with AIZ plugin if used
+            }
+        }
+    });
+}
+
     </script>
 
     

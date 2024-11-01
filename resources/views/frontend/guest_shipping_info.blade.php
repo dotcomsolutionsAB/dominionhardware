@@ -126,14 +126,14 @@
     </div>
 	<br/>
 	<!-- GSTIN -->
-    <div class="row">
+    {{-- <div class="row">
         <div class="col-md-2 mt-md-2">
             <label>{{ translate('GSTIN')}}</label>
         </div>
         <div class="col-md-10">
             <input type="text" id="gstin" class="form-control rounded-0" placeholder="{{ translate('GSTIN number')}}" name="gstin" autocomplete="off">
         </div>
-    </div>
+    </div> --}}
 </div>
 
 
