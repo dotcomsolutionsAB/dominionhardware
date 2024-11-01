@@ -301,6 +301,7 @@ Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function ()
 // Routes open to guest and authenticated users
 Route::group(['prefix' => 'checkout'], function () {
     Route::controller(CheckoutController::class)->group(function () {
+        Route::get('/', 'index')->name('checkout');
         Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
         Route::any('/delivery-info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
         Route::post('/payment-select', 'store_delivery_info')->name('checkout.store_delivery_info');
