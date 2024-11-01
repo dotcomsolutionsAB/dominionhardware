@@ -292,22 +292,36 @@ class CartController extends Controller
     //removes from Cart
     public function removeFromCart(Request $request)
     {
+        // Remove the cart item by ID
         Cart::destroy($request->id);
-        if (auth()->user() != null) {
-            $user_id = Auth::user()->id;
+
+        // Determine the user's cart based on auth status or session temp_user_id
+        if (auth()->check()) {
+            $user_id = auth()->id();
             $carts = Cart::where('user_id', $user_id)->get();
         } else {
-            // For temp user
+            // For guest user
             $temp_user_id = $request->session()->get('temp_user_id');
+            
+            // Check if temp_user_id exists in session
+            if (!$temp_user_id) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => 'No cart found for guest user.'
+                ]);
+            }
+
             $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
 
-        return array(
-            'cart_count' => count($carts),
-            'cart_view' => view('frontend.'.get_setting('homepage_select').'.partials.cart_details', compact('carts'))->render(),
-            'nav_cart_view' => view('frontend.'.get_setting('homepage_select').'.partials.cart')->render(),
-        );
+        // Return the updated cart view and count
+        return [
+            'cart_count' => $carts->count(),
+            'cart_view' => view('frontend.' . get_setting('homepage_select') . '.partials.cart_details', compact('carts'))->render(),
+            'nav_cart_view' => view('frontend.' . get_setting('homepage_select') . '.partials.cart')->render(),
+        ];
     }
+
 
     //updated the quantity for a cart item
     public function updateQuantity(Request $request)
