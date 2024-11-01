@@ -287,76 +287,102 @@ Route::group(['middleware' => ['user', 'verified', 'unbanned']], function () {
 //     ]);
 // });
 
-
+// Routes for authenticated users only
 Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function () {
-
-    // Checkout Routs
     Route::group(['prefix' => 'checkout'], function () {
         Route::controller(CheckoutController::class)->group(function () {
-            Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
-            // Route::get('/', 'index')->name('checkout');
-            Route::any('/delivery-info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
-            Route::post('/payment-select', 'store_delivery_info')->name('checkout.store_delivery_info');
-            Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
-            Route::post('/payment', 'checkout')->name('payment.checkout');
-            Route::post('/get-pick-up-points', 'get_pick_up_points')->name('shipping_info.get_pick_up_points');
-            Route::get('/payment-select', 'get_payment_info')->name('checkout.payment_info');
-            Route::post('/apply-coupon-code', 'apply_coupon_code')->name('checkout.apply_coupon_code');
-            Route::post('/remove-coupon-code', 'remove_coupon_code')->name('checkout.remove_coupon_code');
-            Route::post('/guest-customer-info-check', 'guestCustomerInfoCheck')->name('guest_customer_info_check');
-            //Club point
             Route::post('/apply-club-point', 'apply_club_point')->name('checkout.apply_club_point');
             Route::post('/remove-club-point', 'remove_club_point')->name('checkout.remove_club_point');
+            Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
         });
     });
-
-    // Purchase History
-    Route::resource('purchase_history', PurchaseHistoryController::class);
-    Route::controller(PurchaseHistoryController::class)->group(function () {
-        Route::get('/purchase_history/details/{id}', 'purchase_history_details')->name('purchase_history.details');
-        Route::get('/purchase_history/destroy/{id}', 'order_cancel')->name('purchase_history.destroy');
-        Route::get('digital-purchase-history', 'digital_index')->name('digital_purchase_history.index');
-        Route::get('/digital-products/download/{id}', 'download')->name('digital-products.download');
-
-        Route::get('/re-order/{id}', 're_order')->name('re_order');
-    });
-
-    // Wishlist
-    Route::resource('wishlists', WishlistController::class);
-    Route::post('/wishlists/remove', [WishlistController::class, 'remove'])->name('wishlists.remove');
-
-    //Follow
-    Route::controller(FollowSellerController::class)->group(function () {
-        Route::get('/followed-seller', 'index')->name('followed_seller');
-        Route::get('/followed-seller/store', 'store')->name('followed_seller.store');
-        Route::get('/followed-seller/remove', 'remove')->name('followed_seller.remove');
-    });
-
-    // Wallet
-    Route::controller(WalletController::class)->group(function () {
-        Route::get('/wallet', 'index')->name('wallet.index');
-        Route::post('/recharge', 'recharge')->name('wallet.recharge');
-    });
-
-    // Support Ticket
-    Route::resource('support_ticket', SupportTicketController::class);
-    Route::post('support_ticket/reply', [SupportTicketController::class, 'seller_store'])->name('support_ticket.seller_store');
-
-    // Customer Package
-    Route::post('/customer-packages/purchase', [CustomerPackageController::class, 'purchase_package'])->name('customer_packages.purchase');
-
-    // Customer Product
-    Route::resource('customer_products', CustomerProductController::class);
-    Route::controller(CustomerProductController::class)->group(function () {
-        Route::get('/customer_products/{id}/edit', 'edit')->name('customer_products.edit');
-        Route::post('/customer_products/published', 'updatePublished')->name('customer_products.published');
-        Route::post('/customer_products/status', 'updateStatus')->name('customer_products.update.status');
-        Route::get('/customer_products/destroy/{id}', 'destroy')->name('customer_products.destroy');
-    });
-
-    // Product Review
-    Route::post('/product-review-modal', [ReviewController::class, 'product_review_modal'])->name('product_review_modal');
 });
+
+// Routes open to guest and authenticated users
+Route::group(['prefix' => 'checkout'], function () {
+    Route::controller(CheckoutController::class)->group(function () {
+        Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
+        Route::any('/delivery-info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
+        Route::post('/payment-select', 'store_delivery_info')->name('checkout.store_delivery_info');
+        Route::post('/payment', 'checkout')->name('payment.checkout');
+        Route::post('/get-pick-up-points', 'get_pick_up_points')->name('shipping_info.get_pick_up_points');
+        Route::get('/payment-select', 'get_payment_info')->name('checkout.payment_info');
+        Route::post('/apply-coupon-code', 'apply_coupon_code')->name('checkout.apply_coupon_code');
+        Route::post('/remove-coupon-code', 'remove_coupon_code')->name('checkout.remove_coupon_code');
+        Route::post('/guest-customer-info-check', 'guestCustomerInfoCheck')->name('guest_customer_info_check');
+    });
+});
+
+
+// Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function () {
+
+//     // Checkout Routs
+//     Route::group(['prefix' => 'checkout'], function () {
+//         Route::controller(CheckoutController::class)->group(function () {
+//             Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
+//             // Route::get('/', 'index')->name('checkout');
+//             Route::any('/delivery-info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
+//             Route::post('/payment-select', 'store_delivery_info')->name('checkout.store_delivery_info');
+//             Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
+//             Route::post('/payment', 'checkout')->name('payment.checkout');
+//             Route::post('/get-pick-up-points', 'get_pick_up_points')->name('shipping_info.get_pick_up_points');
+//             Route::get('/payment-select', 'get_payment_info')->name('checkout.payment_info');
+//             Route::post('/apply-coupon-code', 'apply_coupon_code')->name('checkout.apply_coupon_code');
+//             Route::post('/remove-coupon-code', 'remove_coupon_code')->name('checkout.remove_coupon_code');
+//             Route::post('/guest-customer-info-check', 'guestCustomerInfoCheck')->name('guest_customer_info_check');
+//             //Club point
+//             Route::post('/apply-club-point', 'apply_club_point')->name('checkout.apply_club_point');
+//             Route::post('/remove-club-point', 'remove_club_point')->name('checkout.remove_club_point');
+//         });
+//     });
+
+//     // Purchase History
+//     Route::resource('purchase_history', PurchaseHistoryController::class);
+//     Route::controller(PurchaseHistoryController::class)->group(function () {
+//         Route::get('/purchase_history/details/{id}', 'purchase_history_details')->name('purchase_history.details');
+//         Route::get('/purchase_history/destroy/{id}', 'order_cancel')->name('purchase_history.destroy');
+//         Route::get('digital-purchase-history', 'digital_index')->name('digital_purchase_history.index');
+//         Route::get('/digital-products/download/{id}', 'download')->name('digital-products.download');
+
+//         Route::get('/re-order/{id}', 're_order')->name('re_order');
+//     });
+
+//     // Wishlist
+//     Route::resource('wishlists', WishlistController::class);
+//     Route::post('/wishlists/remove', [WishlistController::class, 'remove'])->name('wishlists.remove');
+
+//     //Follow
+//     Route::controller(FollowSellerController::class)->group(function () {
+//         Route::get('/followed-seller', 'index')->name('followed_seller');
+//         Route::get('/followed-seller/store', 'store')->name('followed_seller.store');
+//         Route::get('/followed-seller/remove', 'remove')->name('followed_seller.remove');
+//     });
+
+//     // Wallet
+//     Route::controller(WalletController::class)->group(function () {
+//         Route::get('/wallet', 'index')->name('wallet.index');
+//         Route::post('/recharge', 'recharge')->name('wallet.recharge');
+//     });
+
+//     // Support Ticket
+//     Route::resource('support_ticket', SupportTicketController::class);
+//     Route::post('support_ticket/reply', [SupportTicketController::class, 'seller_store'])->name('support_ticket.seller_store');
+
+//     // Customer Package
+//     Route::post('/customer-packages/purchase', [CustomerPackageController::class, 'purchase_package'])->name('customer_packages.purchase');
+
+//     // Customer Product
+//     Route::resource('customer_products', CustomerProductController::class);
+//     Route::controller(CustomerProductController::class)->group(function () {
+//         Route::get('/customer_products/{id}/edit', 'edit')->name('customer_products.edit');
+//         Route::post('/customer_products/published', 'updatePublished')->name('customer_products.published');
+//         Route::post('/customer_products/status', 'updateStatus')->name('customer_products.update.status');
+//         Route::get('/customer_products/destroy/{id}', 'destroy')->name('customer_products.destroy');
+//     });
+
+//     // Product Review
+//     Route::post('/product-review-modal', [ReviewController::class, 'product_review_modal'])->name('product_review_modal');
+// });
 
 
 Route::get('translation-check/{check}', [LanguageController::class, 'get_translation']);
