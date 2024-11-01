@@ -143,10 +143,11 @@ class CheckoutController extends Controller
             }
         }
 
-        if ($request->payment_option == null) {
-            flash(translate('There is no payment option is selected.'))->warning();
-            return redirect()->route('checkout');
-        }
+        // if ($request->payment_option == null) {
+        //     flash(translate('There is no payment option is selected.'))->warning();
+        //     return redirect()->route('checkout');
+        // }
+        
         $user = auth()->user();
         $carts = Cart::where('user_id', $user->id)->active()->get();
         // $carts = Cart::where('user_id', Auth::user()->id)->get();
@@ -469,8 +470,6 @@ class CheckoutController extends Controller
 
     //     return view('frontend.delivery_info', compact('carts', 'carrier_list'));
     // }
-
-    // use Illuminate\Support\Collection;
 
     public function store_shipping_info(Request $request)
     {
@@ -928,59 +927,59 @@ class CheckoutController extends Controller
         return view('frontend.partials.cart.cart_summary', compact('carts', 'proceed'))->render();
     }
 
-    // public function orderRePayment(Request $request){
-    //     $order = Order::findOrFail($request->order_id);
-    //     if($order != null){
-    //         $request->session()->put('payment_type', 'order_re_payment');
-    //         $data['order_id'] = $order->id;
-    //         $data['payment_method'] = $request->payment_option;
-    //         $request->session()->put('payment_data', $data);
+    public function orderRePayment(Request $request){
+        $order = Order::findOrFail($request->order_id);
+        if($order != null){
+            $request->session()->put('payment_type', 'order_re_payment');
+            $data['order_id'] = $order->id;
+            $data['payment_method'] = $request->payment_option;
+            $request->session()->put('payment_data', $data);
 
-    //         // If block for Online payment, wallet and cash on delivery. Else block for Offline payment
-    //         $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
-    //         if (class_exists($decorator)) {
-    //             return (new $decorator)->pay($request);
-    //         }
-    //         else {
-    //             $manual_payment_data = array(
-    //                 'name'   => $request->payment_option,
-    //                 'amount' => $order->grand_total,
-    //                 'trx_id' => $request->trx_id,
-    //                 'photo'  => $request->photo
-    //             );
+            // If block for Online payment, wallet and cash on delivery. Else block for Offline payment
+            $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
+            if (class_exists($decorator)) {
+                return (new $decorator)->pay($request);
+            }
+            else {
+                $manual_payment_data = array(
+                    'name'   => $request->payment_option,
+                    'amount' => $order->grand_total,
+                    'trx_id' => $request->trx_id,
+                    'photo'  => $request->photo
+                );
 
-    //             $order->payment_type = $request->payment_option;
-    //             $order->manual_payment = 1;
-    //             $order->manual_payment_data = json_encode($manual_payment_data);
-    //             $order->save();
+                $order->payment_type = $request->payment_option;
+                $order->manual_payment = 1;
+                $order->manual_payment_data = json_encode($manual_payment_data);
+                $order->save();
 
-    //             flash(translate('Payment done.'))->success();
-    //             return redirect()->route('purchase_history.details', encrypt($order->id));
-    //         }
-    //     }
-    //     flash(translate('Order Not Found'))->warning();
-    //     return back();
-    // }
+                flash(translate('Payment done.'))->success();
+                return redirect()->route('purchase_history.details', encrypt($order->id));
+            }
+        }
+        flash(translate('Order Not Found'))->warning();
+        return back();
+    }
 
-    // public function orderRePaymentDone($payment_data, $payment_details = null)
-    // {
-    //     $order = Order::findOrFail($payment_data['order_id']);
-    //     $order->payment_status = 'paid';
-    //     $order->payment_details = $payment_details;
-    //     $order->payment_type = $payment_data['payment_method'];
-    //     $order->save();
-    //     calculateCommissionAffilationClubPoint($order);
+    public function orderRePaymentDone($payment_data, $payment_details = null)
+    {
+        $order = Order::findOrFail($payment_data['order_id']);
+        $order->payment_status = 'paid';
+        $order->payment_details = $payment_details;
+        $order->payment_type = $payment_data['payment_method'];
+        $order->save();
+        calculateCommissionAffilationClubPoint($order);
 
-    //     if($order->notified == 0){
-    //         NotificationUtility::sendOrderPlacedNotification($order);
-    //         $order->notified = 1;
-    //         $order->save();
-    //     }
+        if($order->notified == 0){
+            NotificationUtility::sendOrderPlacedNotification($order);
+            $order->notified = 1;
+            $order->save();
+        }
 
-    //     Session::forget('payment_type');
-    //     Session::forget('order_id');
+        Session::forget('payment_type');
+        Session::forget('order_id');
 
-    //     flash(translate('Payment done.'))->success();
-    //     return redirect()->route('purchase_history.details', encrypt($order->id));
-    // }
+        flash(translate('Payment done.'))->success();
+        return redirect()->route('purchase_history.details', encrypt($order->id));
+    }
 }
