@@ -465,10 +465,10 @@
                     <button type="button"
                         class="btn btn-secondary-base mr-2 add-to-cart fw-600 min-w-150px rounded-0 text-white"
                         onclick="addToCart()">
-                        <i class="las la-shopping-bag"></i> {{ translate('Add to carts') }}
+                        <i class="las la-shopping-bag"></i> {{ translate('Add to Cart') }}
                     </button>
                     <button type="button" class="btn btn-primary buy-now fw-600 add-to-cart min-w-150px rounded-0"
-                    @if (Auth::check() || get_Setting('guest_checkout_activation') == 1) onclick="addToCart()" @endif>
+                        onclick="addToCart()">
                         <i class="la la-shopping-cart"></i> {{ translate('Buy Now') }}
                     </button>
                 @endif
@@ -481,15 +481,16 @@
             @elseif ($detailedProduct->digital == 1)
                 <button type="button"
                     class="btn btn-secondary-base mr-2 add-to-cart fw-600 min-w-150px rounded-0 text-white"
-                    @if (Auth::check() || get_Setting('guest_checkout_activation') == 1) onclick="addToCart()" @endif>
-                    <i class="las la-shopping-bag"></i> {{ translate('Add to carts') }}
+                    onclick="addToCart()">
+                    <i class="las la-shopping-bag"></i> {{ translate('Add to Cart') }}
                 </button>
                 <button type="button" class="btn btn-primary buy-now fw-600 add-to-cart min-w-150px rounded-0"
-                onclick="addToCart()">
+                    onclick="addToCart()">
                     <i class="la la-shopping-cart"></i> {{ translate('Buy Now') }}
                 </button>
             @endif
         </div>
+        
         @if ($detailedProduct->pdf != null)
             <a href="{!! $detailedProduct->pdf !!}" target="_blank" 
                 class="btn" 
