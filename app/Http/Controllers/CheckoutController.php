@@ -385,12 +385,6 @@ class CheckoutController extends Controller
         return back();
     }
 
-
-    
-    
-
-
-
     public function store_shipping_info(Request $request)
     {
         $auth_user = auth()->user();
@@ -399,7 +393,7 @@ class CheckoutController extends Controller
         if($auth_user == null && get_setting('guest_checkout_activation') == 0){
             return redirect()->route('user.login');
         }
-
+        dd($request->all()); 
         // if ($request->address_id == null) {
         //     flash(translate("Please add shipping address"))->warning();
         //     return back();

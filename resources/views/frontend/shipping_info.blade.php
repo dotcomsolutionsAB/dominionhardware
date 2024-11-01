@@ -152,8 +152,7 @@
                                     </div>
                                 </div>
                             </div>
-                        @else
-                        <!-- Guest Checkout Form for Shipping Info -->
+                        {{-- <!-- Guest Checkout Form for Shipping Info -->
                             <div class="border bg-white p-4 mb-4">
                                 <h4>{{ translate('Guest Shipping Information') }}</h4>
                                 <input type="hidden" name="checkout_type" value="guest">
@@ -212,7 +211,7 @@
                                         <button type="submit" class="btn btn-primary fs-14 fw-700 rounded-0 px-4">{{ translate('Continue to Delivery Info')}}</button>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
                         @endif
                     </form>
                 </div>
