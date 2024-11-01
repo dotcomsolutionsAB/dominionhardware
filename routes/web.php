@@ -48,6 +48,7 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\SizeChartController;
 
+use Illuminate\Http\Request;
 /*
   |--------------------------------------------------------------------------
   | Web Routes
@@ -273,6 +274,7 @@ Route::group(['middleware' => ['user', 'verified', 'unbanned']], function () {
 
     Route::get('/all-notifications', [NotificationController::class, 'index'])->name('all-notifications');
 });
+
 Route::get('/debug-guest-checkout', function (Request $request) {
     $guestCheckoutActivation = get_setting('guest_checkout_activation');
     $tempUserId = $request->session()->get('temp_user_id');
