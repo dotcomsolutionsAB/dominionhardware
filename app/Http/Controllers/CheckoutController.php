@@ -338,27 +338,65 @@ class CheckoutController extends Controller
         return redirect()->route('order_confirmed');
     }
 
+    // public function get_shipping_info(Request $request)
+    // {
+    //     if(get_setting('guest_checkout_activation') == 0 && auth()->user() == null){
+    //         return redirect()->route('user.login');
+    //     }
+
+    //     if (auth()->user() != null) {
+    //         $user_id = Auth::user()->id;
+    //         $carts = Cart::where('user_id', $user_id)->get();
+    //     }
+    //     else {
+    //         $temp_user_id = $request->session()->get('temp_user_id');
+    //         $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+    //     }
+    //     if ($carts && count($carts) > 0) {
+    //         $categories = Category::all();
+    //         return view('frontend.shipping_info', compact('categories', 'carts'));
+    //     }
+    //     flash(translate('Your cart is empty'))->success();
+    //     return back();
+    // }
     public function get_shipping_info(Request $request)
     {
-        if(get_setting('guest_checkout_activation') == 0 && auth()->user() == null){
+        // Check if guest checkout is enabled; if disabled, redirect guests to login
+        if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
             return redirect()->route('user.login');
         }
 
+        // Retrieve cart items based on whether the user is logged in or a guest
         if (auth()->user() != null) {
+            // For logged-in users, fetch cart items by user_id
             $user_id = Auth::user()->id;
             $carts = Cart::where('user_id', $user_id)->get();
-        }
-        else {
+        } else {
+            // For guest users, fetch cart items by temp_user_id from the session
             $temp_user_id = $request->session()->get('temp_user_id');
-            $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+
+            // Debugging: Check if temp_user_id is set in the session
+            if (!$temp_user_id) {
+                // If not set, display a message for debugging and prevent further execution
+                dd('Guest checkout enabled, but temp_user_id is missing. Check cart session handling.');
+            }
+
+            // Fetch cart items based on temp_user_id
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
+
+        // Check if there are items in the cart
         if ($carts && count($carts) > 0) {
+            // Load categories and return shipping info view
             $categories = Category::all();
             return view('frontend.shipping_info', compact('categories', 'carts'));
         }
+
+        // If the cart is empty, display a flash message and redirect back
         flash(translate('Your cart is empty'))->success();
         return back();
     }
+
 
     public function store_shipping_info(Request $request)
     {
