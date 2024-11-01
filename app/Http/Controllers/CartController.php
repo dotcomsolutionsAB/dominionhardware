@@ -194,13 +194,31 @@ class CartController extends Controller
         }
 
         // Set user ID or temp user ID for guest users
+        // if ($authUser) {
+        //     $user_id = $authUser->id;
+        //     $data['user_id'] = $user_id;
+        //     $carts = Cart::where('user_id', $user_id)->get();
+        // } else {
+        //     $temp_user_id = $request->session()->get('temp_user_id') ?: bin2hex(random_bytes(10));
+        //     $request->session()->put('temp_user_id', $temp_user_id);
+        //     $data['temp_user_id'] = $temp_user_id;
+        //     $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        // }
         if ($authUser) {
+            // For logged-in users
             $user_id = $authUser->id;
             $data['user_id'] = $user_id;
             $carts = Cart::where('user_id', $user_id)->get();
         } else {
-            $temp_user_id = $request->session()->get('temp_user_id') ?: bin2hex(random_bytes(10));
-            $request->session()->put('temp_user_id', $temp_user_id);
+            // For guest users
+            if ($request->session()->get('temp_user_id') == null) {
+                // Generate a temporary user ID for guest users if it doesn't exist
+                $temp_user_id = bin2hex(random_bytes(10));
+                $request->session()->put('temp_user_id', $temp_user_id);
+            } else {
+                $temp_user_id = $request->session()->get('temp_user_id');
+            }
+    
             $data['temp_user_id'] = $temp_user_id;
             $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
@@ -286,6 +304,12 @@ class CartController extends Controller
             'modal_view' => view('frontend.'.get_setting('homepage_select').'.partials.addedToCart', compact('product', 'cart'))->render(),
             'nav_cart_view' => view('frontend.'.get_setting('homepage_select').'.partials.cart')->render(),
         ];
+
+        return response()->json([
+            'status' => 1,
+            'cart_count' => count($carts),
+            // Add other return data as needed
+        ]);
     }
 
 
