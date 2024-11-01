@@ -145,7 +145,7 @@ class CheckoutController extends Controller
 
         if ($request->payment_option == null) {
             flash(translate('There is no payment option is selected.'))->warning();
-            return redirect()->route('checkout.shipping_info');
+            return redirect()->route('checkout');
         }
         $user = auth()->user();
         $carts = Cart::where('user_id', $user->id)->active()->get();
