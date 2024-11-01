@@ -363,7 +363,7 @@ class CheckoutController extends Controller
 {
     // Check guest checkout setting
     if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
-        return redirect()->route('user.login'); // Only redirect if guest checkout is disabled
+        // return redirect()->route('user.login'); // Only redirect if guest checkout is disabled
     }
 
     // Load cart based on user or guest session
