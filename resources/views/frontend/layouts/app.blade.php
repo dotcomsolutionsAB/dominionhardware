@@ -543,22 +543,48 @@
             @endif
         }
 
-        function showAddToCartModal(id){
-            if(!$('#modal-size').hasClass('modal-lg')){
+        // function showAddToCartModal(id){
+        //     if(!$('#modal-size').hasClass('modal-lg')){
+        //         $('#modal-size').addClass('modal-lg');
+        //     }
+        //     $('#addToCart-modal-body').html(null);
+        //     $('#addToCart').modal();
+        //     $('.c-preloader').show();
+        //     $.post('{{ route('cart.showCartModal') }}', {_token: AIZ.data.csrf, id:id}, function(data){
+        //         $('.c-preloader').hide();
+        //         $('#addToCart-modal-body').html(data);
+        //         AIZ.plugins.slickCarousel();
+        //         AIZ.plugins.zoom();
+        //         AIZ.extra.plusMinus();
+        //         getVariantPrice();
+        //     });
+        // }
+        function showAddToCartModal(id) {
+            if (!$('#modal-size').hasClass('modal-lg')) {
                 $('#modal-size').addClass('modal-lg');
             }
             $('#addToCart-modal-body').html(null);
             $('#addToCart').modal();
             $('.c-preloader').show();
-            $.post('{{ route('cart.showCartModal') }}', {_token: AIZ.data.csrf, id:id}, function(data){
+            
+            $.post('{{ route('cart.showCartModal') }}', { _token: AIZ.data.csrf, id: id }, function (data) {
                 $('.c-preloader').hide();
-                $('#addToCart-modal-body').html(data);
-                AIZ.plugins.slickCarousel();
-                AIZ.plugins.zoom();
-                AIZ.extra.plusMinus();
-                getVariantPrice();
+                
+                if (data.status === 0) {
+                    // Display error if the product is not found
+                    AIZ.plugins.notify('warning', data.message);
+                    $('#addToCart').modal('hide');
+                } else {
+                    // Load modal data for the product
+                    $('#addToCart-modal-body').html(data);
+                    AIZ.plugins.slickCarousel();
+                    AIZ.plugins.zoom();
+                    AIZ.extra.plusMinus();
+                    getVariantPrice();
+                }
             });
         }
+
 
         $('#option-choice-form input').on('change', function(){
             getVariantPrice();

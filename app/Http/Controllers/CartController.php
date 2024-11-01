@@ -50,8 +50,18 @@ class CartController extends Controller
     public function showCartModal(Request $request)
     {
         $product = Product::find($request->id);
+
+        // Check if the product is found, else return a view with an error message
+        if (!$product) {
+            return response()->json([
+                'status' => 0,
+                'message' => 'Product not found.',
+            ], 404);
+        }
+
         return view('frontend.'.get_setting('homepage_select').'.partials.addToCart', compact('product'));
     }
+
 
     public function showCartModalAuction(Request $request)
     {
