@@ -1,4 +1,155 @@
 <div class="card rounded-0 border shadow-none">
+    <div class="card-header pt-4 pb-1 border-bottom-0">
+        <h3 class="fs-16 fw-700 mb-0">{{ translate('Summary') }}</h3>
+        <div class="text-right">
+            <!-- Items Count -->
+            <span class="badge badge-inline badge-primary fs-12 rounded-0 px-2">
+                {{ isset($carts) ? count($carts) : 0 }}
+                {{ translate('Items') }}
+            </span>
+            
+            <!-- Minimum Order Amount -->
+            @php
+                $coupon_discount = 0;
+                $coupon_code = null;
+            @endphp
+            @if (Auth::check() && get_setting('coupon_system') == 1)
+                @foreach ($carts as $key => $cartItem)
+                    @if (!empty($cartItem) && $cartItem->coupon_applied == 1)
+                        @php
+                            $coupon_code = $cartItem->coupon_code;
+                            break;
+                        @endphp
+                    @endif
+                @endforeach
+
+                @php
+                    $coupon_discount = $carts->sum('discount') ?? 0;
+                @endphp
+            @endif
+
+            @php $subtotal_for_min_order_amount = 0; @endphp
+            @foreach ($carts as $key => $cartItem)
+                @if (!empty($cartItem))
+                    @php $subtotal_for_min_order_amount += cart_product_price($cartItem, $cartItem->product, false, false) * ($cartItem['quantity'] ?? 0); @endphp
+                @endif
+            @endforeach
+            @if (get_setting('minimum_order_amount_check') == 1 && $subtotal_for_min_order_amount < get_setting('minimum_order_amount'))
+                <span class="badge badge-inline badge-primary fs-12 rounded-0 px-2">
+                    {{ translate('Minimum Order Amount') . ' ' . single_price(get_setting('minimum_order_amount')) }}
+                </span>
+            @endif
+            
+        </div>
+    </div>
+
+    <!-- Club point -->
+    @if (addon_is_activated('club_point'))
+    <div class="px-4 pt-1 w-100 d-flex align-items-center justify-content-between">
+        <h3 class="fs-14 fw-700 mb-0">{{ translate('Total Clubpoint') }}</h3>
+        <div class="text-right">
+            <span class="badge badge-inline badge-secondary-base fs-12 rounded-0 px-2 text-white">
+                @php
+                    $total_point = 0;
+                @endphp
+                @foreach ($carts as $key => $cartItem)
+                    @if (!empty($cartItem))
+                        @php
+                            $product = get_single_product($cartItem['product_id']);
+                            $total_point += $product->earn_point * ($cartItem['quantity'] ?? 0);
+                        @endphp
+                    @endif
+                @endforeach
+                {{ $total_point }}
+            </span>
+        </div>
+    </div>
+    @endif
+
+    <div class="card-body">
+        <!-- Products Info -->
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="product-name border-top-0 border-bottom-1 pl-0 fs-12 fw-400 opacity-60">{{ translate('Product') }}</th>
+                    <th class="product-total text-right border-top-0 border-bottom-1 pr-0 fs-12 fw-400 opacity-60">{{ translate('Total') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $subtotal = 0;
+                    $tax = 0;
+                    $shipping = 0;
+                    $product_shipping_cost = 0;
+                    $shipping_region = $shipping_info['city'] ?? '';
+                @endphp
+                @foreach ($carts as $key => $cartItem)
+                    @if (!empty($cartItem))
+                        @php
+                            $product = get_single_product($cartItem['product_id']);
+                            $subtotal += cart_product_price($cartItem, $product, false, false) * ($cartItem['quantity'] ?? 0);
+                            $tax += cart_product_tax($cartItem, $product, false) * ($cartItem['quantity'] ?? 0);
+
+                            $product_shipping_cost = ($subtotal + $tax > 5000) ? 0 : 100;
+                            $shipping = $product_shipping_cost;
+
+                            $product_name_with_choice = $product->getTranslation('name');
+                            if (!empty($cartItem['variant'])) {
+                                $product_name_with_choice .= ' - ' . $cartItem['variant'];
+                            }
+                        @endphp
+                        <tr class="cart_item">
+                            <td class="product-name pl-0 fs-14 text-dark fw-400 border-top-0 border-bottom">
+                                {{ $product_name_with_choice }}
+                                <strong class="product-quantity"> × {{ $cartItem['quantity'] ?? 0 }}</strong>
+                            </td>
+                            <td class="product-total text-right pr-0 fs-14 text-primary fw-600 border-top-0 border-bottom">
+                                <span class="pl-4 pr-0">{{ single_price(cart_product_price($cartItem, $cartItem->product, false, false) * ($cartItem['quantity'] ?? 0)) }}</span>
+                            </td>
+                        </tr>
+                    @endif
+                @endforeach
+                @php
+                    $subtotal += $shipping;
+                    $tax += $shipping * 0.18;
+                @endphp
+            </tbody>
+        </table>
+
+        <!-- Subtotal and Total -->
+        <input type="hidden" id="sub_total" value="{{ $subtotal }}">
+
+        <table class="table" style="margin-top: 2rem!important;">
+            <tfoot>
+                <!-- Total Shipping -->
+                <tr class="cart-shipping">
+                    <th class="pl-0 fs-14 pt-0 pb-2 text-dark fw-600 border-top-0">{{ translate('Total Shipping') }}</th>
+                    <td class="text-right pr-0 fs-14 pt-0 pb-2 fw-600 text-primary border-top-0">
+                        <span class="fw-600">{{ single_price($shipping) }}</span>
+                    </td>
+                </tr>
+                <tr class="cart-subtotal">
+                    <th class="pl-0 fs-14 pt-0 pb-2 text-dark fw-600 border-top-0">{{ translate('Subtotal') }}</th>
+                    <td class="text-right pr-0 fs-14 pt-0 pb-2 fw-600 text-primary border-top-0">
+                        <span class="fw-600 sub_total">{{ single_price($subtotal) }}</span>
+                    </td>
+                </tr>
+                <!-- Tax -->
+                <tr class="cart-shipping">
+                    <th class="pl-0 fs-14 pt-0 pb-2 text-dark fw-600 border-top-0">{{ translate('Tax') }}</th>
+                    <td class="text-right pr-0 fs-14 pt-0 pb-2 fw-600 text-primary border-top-0">
+                        <span class="fw-600 tax">{{ single_price($tax) }}</span>
+                    </td>
+                </tr>
+                <!-- Additional rows for Coupon Discount, Round Off, etc., if needed -->
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+
+
+{{-- <div class="card rounded-0 border shadow-none">
 
     <div class="card-header pt-4 pb-1 border-bottom-0">
         <h3 class="fs-16 fw-700 mb-0">{{ translate('Summary') }}</h3>
@@ -285,4 +436,4 @@
         @endif
 
     </div>
-</div>
+</div> --}}
