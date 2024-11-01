@@ -166,13 +166,7 @@
 
 @section('modal')
     <!-- Address Modal -->
-    @if(Auth::check())
-        @include('frontend.partials.address.address_modal')
-    @endif
-@endsection
-
-@section('script')
-    @include('frontend.partials.address.address_js')
+    @include('frontend.'.get_setting('homepage_select').'.partials.address_modal')
 @endsection
 
 
