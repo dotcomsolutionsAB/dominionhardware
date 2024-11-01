@@ -114,10 +114,10 @@
                                 <a href="{{ route('checkout.shipping_info') }}" class="btn btn-primary fs-14 fw-700 rounded-0 px-4">
                                     {{ translate('Continue to Shipping') }}
                                 </a>
-                            {{-- @else
+                            @else
                                 <button class="btn btn-primary fs-14 fw-700 rounded-0 px-4" onclick="showLoginModal()">
                                     {{ translate('Continue to Shipping') }}
-                                </button> --}}
+                                </button>
                             @endif
                         </div>
                     </div>
