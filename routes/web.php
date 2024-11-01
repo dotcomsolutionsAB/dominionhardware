@@ -301,8 +301,8 @@ Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function ()
 // Routes open to guest and authenticated users
 Route::group(['prefix' => 'checkout'], function () {
     Route::controller(CheckoutController::class)->group(function () {
-        Route::get('/', 'index')->name('checkout');
-        Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
+        Route::get('/', 'index')->name('checkout'); // Main checkout entry point
+        Route::get('/shipping-info', 'get_shipping_info')->name('checkout.shipping_info'); // Separate route for shipping info
         Route::any('/delivery-info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
         Route::post('/payment-select', 'store_delivery_info')->name('checkout.store_delivery_info');
         Route::post('/payment', 'checkout')->name('payment.checkout');
@@ -313,6 +313,22 @@ Route::group(['prefix' => 'checkout'], function () {
         Route::post('/guest-customer-info-check', 'guestCustomerInfoCheck')->name('guest_customer_info_check');
     });
 });
+
+// // Routes open to guest and authenticated users
+// Route::group(['prefix' => 'checkout'], function () {
+//     Route::controller(CheckoutController::class)->group(function () {
+//         Route::get('/', 'index')->name('checkout');
+//         // Route::get('/', 'get_shipping_info')->name('checkout.shipping_info');
+//         Route::any('/delivery-info', 'store_shipping_info')->name('checkout.store_shipping_infostore');
+//         Route::post('/payment-select', 'store_delivery_info')->name('checkout.store_delivery_info');
+//         Route::post('/payment', 'checkout')->name('payment.checkout');
+//         Route::post('/get-pick-up-points', 'get_pick_up_points')->name('shipping_info.get_pick_up_points');
+//         Route::get('/payment-select', 'get_payment_info')->name('checkout.payment_info');
+//         Route::post('/apply-coupon-code', 'apply_coupon_code')->name('checkout.apply_coupon_code');
+//         Route::post('/remove-coupon-code', 'remove_coupon_code')->name('checkout.remove_coupon_code');
+//         Route::post('/guest-customer-info-check', 'guestCustomerInfoCheck')->name('guest_customer_info_check');
+//     });
+// });
 
 
 
