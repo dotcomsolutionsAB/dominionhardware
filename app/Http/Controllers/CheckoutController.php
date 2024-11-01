@@ -385,6 +385,93 @@ class CheckoutController extends Controller
         return back();
     }
 
+    // public function store_shipping_info(Request $request)
+    // {
+    //     $auth_user = auth()->user();
+    //     $temp_user_id = $request->session()->get('temp_user_id');
+
+    //     if (!$auth_user && get_setting('guest_checkout_activation') == 0) {
+    //         return redirect()->route('user.login');
+    //     }
+
+    //     if ($auth_user) {
+    //         // Validate for logged-in users
+    //         if ($request->address_id == null) {
+    //             flash(translate("Please add shipping address"))->warning();
+    //             return back();
+    //         }
+            
+    //         // Save address_id to each cart item for the logged-in user
+    //         $carts = Cart::where('user_id', $auth_user->id)->get();
+    //         foreach ($carts as $cartItem) {
+    //             $cartItem->address_id = $request->address_id;
+    //             $cartItem->save();
+    //         }
+    //     } else {
+    //         // Guest checkout validation
+    //         $request->validate([
+    //             'name' => 'required',
+    //             'email' => 'required|email',
+    //             'phone' => 'required',
+    //             'address' => 'required',
+    //             'country_id' => 'required',
+    //             'state_id' => 'required',
+    //             'city_id' => 'required',
+    //             'postal_code' => 'required',
+    //         ]);
+
+    //         // Save guest shipping info in session
+    //         $shipping_info = [
+    //             'name' => $request->name,
+    //             'email' => $request->email,
+    //             'address' => $request->address,
+    //             'country_id' => $request->country_id,
+    //             'state_id' => $request->state_id,
+    //             'city_id' => $request->city_id,
+    //             'postal_code' => $request->postal_code,
+    //             'phone' => '+' . $request->country_code . $request->phone,
+    //             'longitude' => $request->longitude,
+    //             'latitude' => $request->latitude,
+    //             'gstin' => $request->gstin,
+    //         ];
+    //         $request->session()->put('guest_shipping_info', $shipping_info);
+            
+    //         $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+    //     }
+
+    //     if ($carts->isEmpty()) {
+    //         flash(translate('Your cart is empty'))->warning();
+    //         return redirect()->route('home');
+    //     }
+
+    //     $deliveryInfo = [];
+
+    //     // Set Delivery info for logged-in users
+    //     if ($auth_user) {
+    //         $address = Address::findOrFail($carts[0]['address_id']);
+    //         $deliveryInfo['country_id'] = $address->country_id;
+    //         $deliveryInfo['city_id'] = $address->city_id;
+    //     } else {
+    //         $deliveryInfo['country_id'] = $request->country_id;
+    //         $deliveryInfo['city_id'] = $request->city_id;
+    //     }
+
+    //     $carrier_list = [];
+    //     if (get_setting('shipping_type') == 'carrier_wise_shipping') {
+    //         $zone = Country::where('id', $deliveryInfo['country_id'])->first()->zone_id;
+    //         $carrier_query = Carrier::where('status', 1);
+    //         $carrier_query->whereIn('id', function ($query) use ($zone) {
+    //             $query->select('carrier_id')->from('carrier_range_prices')
+    //                 ->where('zone_id', $zone);
+    //         })->orWhere('free_shipping', 1);
+    //         $carrier_list = $carrier_query->get();
+    //     }
+
+    //     return view('frontend.delivery_info', compact('carts', 'carrier_list'));
+    // }
+
+    // use Illuminate\Support\Collection;
+
     public function store_shipping_info(Request $request)
     {
         $auth_user = auth()->user();
@@ -397,10 +484,10 @@ class CheckoutController extends Controller
         if ($auth_user) {
             // Validate for logged-in users
             if ($request->address_id == null) {
-                flash(translate("Please add shipping address"))->warning();
+                flash(translate("Please add a shipping address"))->warning();
                 return back();
             }
-            
+
             // Save address_id to each cart item for the logged-in user
             $carts = Cart::where('user_id', $auth_user->id)->get();
             foreach ($carts as $cartItem) {
@@ -435,10 +522,12 @@ class CheckoutController extends Controller
                 'gstin' => $request->gstin,
             ];
             $request->session()->put('guest_shipping_info', $shipping_info);
-            
-            $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+
+            // Retrieve cart items for guest user
+            $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : collect([]);
         }
 
+        // Check if the cart is empty
         if ($carts->isEmpty()) {
             flash(translate('Your cart is empty'))->warning();
             return redirect()->route('home');

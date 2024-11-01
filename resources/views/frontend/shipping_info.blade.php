@@ -151,11 +151,11 @@
                                 <div class="col-md-6 text-center text-md-right">
                                     
                                     <button type="submit" class="btn btn-primary fs-14 fw-700 rounded-0 px-4">{{ translate('Continue to Delivery Info')}}</button>
-                                        {{-- @if(Auth::check()) type="submit" @else type="button" onclick="submitShippingInfoForm(this)" @endif
+                                      {{-- <button  @if(Auth::check()) type="submit" @else type="button" onclick="submitShippingInfoForm(this)" @endif
                                         class="btn btn-primary fs-14 fw-700 rounded-0 px-4"
-                                    > --}}
+                                    >
                                         {{ translate('Continue to Delivery Info')}}
-                                    </button>
+                                    </button> --}}
                                 </div>
                             </div>
                         </div>
