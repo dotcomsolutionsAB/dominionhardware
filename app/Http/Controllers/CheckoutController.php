@@ -359,38 +359,32 @@ class CheckoutController extends Controller
     //     flash(translate('Your cart is empty'))->success();
     //     return back();
     // }
+    
     public function get_shipping_info(Request $request)
-{
-    $temp_user_id = $request->session()->get('temp_user_id');
-if (!$temp_user_id) {
-    // This should ideally not happen if temp_user_id is set correctly
-    dd("temp_user_id is missing");
-}
+    {
+        // Check if guest checkout is enabled or the user is logged in
+        if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
+            return redirect()->route('user.login');
+        }
 
-    // Check guest checkout setting
-    // if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
-    //     return redirect()->route('user.login'); // Only redirect if guest checkout is disabled
-    // }
+        // Retrieve cart items based on user or guest session
+        if (auth()->check()) {
+            $user_id = Auth::user()->id;
+            $carts = Cart::where('user_id', $user_id)->get();
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
 
-    // Load cart based on user or guest session
-    if (auth()->check()) {
-        $user_id = auth()->user()->id;
-        $carts = Cart::where('user_id', $user_id)->get();
-    } else {
-        $temp_user_id = $request->session()->get('temp_user_id');
-        $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
-        $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+        if ($carts && count($carts) > 0) {
+            $categories = Category::all();
+            return view('frontend.shipping_info', compact('categories', 'carts'));
+        }
 
-    }
-    dd($carts);
-    if ($carts->isNotEmpty()) {
-        $categories = Category::all();
-        return view('frontend.shipping_info', compact('categories', 'carts'));
+        flash(translate('Your cart is empty'))->success();
+        return back();
     }
 
-    flash(translate('Your cart is empty'))->success();
-    return back();
-}
 
     
     
