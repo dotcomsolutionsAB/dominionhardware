@@ -268,38 +268,40 @@ class CheckoutController extends Controller
     // }
 
     public function checkout(Request $request)
-{
-    // if guest checkout, create user
-    if(auth()->user() == null) {
-        $guest_user = $this->createUser($request->except('_token', 'payment_option'));
-
-        if (gettype($guest_user) == "object") {
-            $errors = $guest_user;
-            return view('frontend.checkout_debug', ['errors' => $errors]);
+    {
+        // if guest checkout, create user
+        if(auth()->user() == null) {
+            $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+    
+            if (gettype($guest_user) == "object") {
+                $errors = $guest_user;
+                return view('frontend.checkout_debug', ['errors' => $errors]);
+            }
+    
+            if ($guest_user == 0) {
+                return view('frontend.checkout_debug', ['message' => 'Guest user creation failed. Please try again later.']);
+            }
         }
-
-        if ($guest_user == 0) {
-            return view('frontend.checkout_debug', ['message' => 'Guest user creation failed. Please try again later.']);
+    
+        if ($request->payment_option == null) {
+            return view('frontend.checkout_debug', ['message' => 'No payment option selected.']);
         }
+    
+        // Proceed with storing the order
+        (new OrderController)->store($request);
+    
+        // Get combined order ID and session data
+        $combined_order_id = session('combined_order_id');
+        $session_data = session()->all();
+    
+        // Display combined order ID and check if redirection should happen
+        return view('frontend.checkout_debug', [
+            'combined_order_id' => $combined_order_id,
+            'session_data' => $session_data,
+            'message' => $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.'
+        ]);
     }
-
-    if ($request->payment_option == null) {
-        return view('frontend.checkout_debug', ['message' => 'No payment option selected.']);
-    }
-
-    // Proceed with storing the order
-    (new OrderController)->store($request);
-
-    // Get the combined order ID from the session
-    $combined_order_id = session('combined_order_id');
-
-    // Display combined order ID and check if redirection should happen
-    return view('frontend.checkout_debug', [
-        'combined_order_id' => $combined_order_id,
-        'session_data' => session()->all(),
-        'message' => $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.'
-    ]);
-}
+    
 
     // public function createUser($guest_shipping_info)
     // {
