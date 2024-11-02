@@ -270,6 +270,8 @@ class CheckoutController extends Controller
     public function checkout(Request $request)
     {
         $message = ''; // Initialize the message to avoid undefined variable issues
+        $combined_order_id = null; // Initialize to handle undefined variable error
+        $session_data = session()->all(); // Retrieve session data
     
         // Check if guest checkout, create user
         if(auth()->user() == null) {
@@ -277,26 +279,25 @@ class CheckoutController extends Controller
     
             if (gettype($guest_user) == "object") {
                 $errors = $guest_user;
-                return view('frontend.checkout_debug', compact('errors', 'message'));
+                return view('frontend.checkout_debug', compact('errors', 'message', 'combined_order_id', 'session_data'));
             }
     
             if ($guest_user == 0) {
                 $message = 'Guest user creation failed. Please try again later.';
-                return view('frontend.checkout_debug', compact('message'));
+                return view('frontend.checkout_debug', compact('message', 'combined_order_id', 'session_data'));
             }
         }
     
         if ($request->payment_option == null) {
             $message = 'No payment option selected.';
-            return view('frontend.checkout_debug', compact('message'));
+            return view('frontend.checkout_debug', compact('message', 'combined_order_id', 'session_data'));
         }
     
         // Proceed with storing the order
         (new OrderController)->store($request);
     
-        // Retrieve combined order ID and session data
+        // Retrieve combined order ID
         $combined_order_id = session('combined_order_id');
-        $session_data = session()->all();
     
         // Update message based on combined order ID presence
         $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
@@ -304,6 +305,7 @@ class CheckoutController extends Controller
         // Pass all variables to the view
         return view('frontend.checkout_debug', compact('combined_order_id', 'session_data', 'message'));
     }
+    
     
 
 
