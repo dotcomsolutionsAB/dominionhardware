@@ -29,98 +29,146 @@ class CheckoutController extends Controller
         //
     }
 
+    // public function index(Request $request)
+    // {
+    //     if(get_setting('guest_checkout_activation') == 0 && auth()->user() == null){
+    //         return redirect()->route('user.login');
+    //     }
+
+    //     if(auth()->check() && !$request->user()->hasVerifiedEmail()){
+    //         return redirect()->route('verification.notice');
+    //     }
+
+    //     $country_id = 0;
+    //     $city_id = 0;
+    //     $address_id = 0;
+    //     $shipping_info = array();
+
+    //     if (auth()->check()) {
+    //         $user_id = Auth::user()->id;
+    //         $carts = Cart::where('user_id', $user_id)->active()->get();
+    //         $addresses = Address::where('user_id', $user_id)->get();
+    //         if(count($addresses)){
+    //             $address = $addresses->toQuery()->first();
+    //             $address_id = $address->id;
+    //             $country_id = $address->country_id;
+    //             $city_id = $address->city_id;
+    //             $default_address =$addresses->toQuery()->where('set_default', 1)->first();
+    //             if($default_address != null){
+    //                 $address_id = $default_address->id;
+    //                 $country_id = $default_address->country_id;
+    //                 $city_id = $default_address->city_id;
+    //             }
+    //         }
+    //     }
+    //     else {
+    //         $temp_user_id = $request->session()->get('temp_user_id');
+    //         $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
+    //     }
+
+    //     $shipping_info['country_id'] = $country_id;
+    //     $shipping_info['city_id'] = $city_id;
+    //     $total = 0;
+    //     $tax = 0;
+    //     $shipping = 0;
+    //     $subtotal = 0;
+    //     $default_carrier_id = null;
+    //     $default_shipping_type = 'home_delivery';
+
+    //     if ($carts && count($carts) > 0) {
+    //         $carts->toQuery()->update(['address_id' => $address_id]);
+    //         $carts = $carts->fresh();
+
+    //         $carrier_list = array();
+    //         if (get_setting('shipping_type') == 'carrier_wise_shipping') {
+    //             $default_shipping_type = 'carrier';
+    //             $zone = $country_id != 0 ? Country::where('id', $country_id)->first()->zone_id : 0;
+
+    //             $carrier_query = Carrier::where('status', 1);
+    //             $carrier_query->whereIn('id',function ($query) use ($zone) {
+    //                 $query->select('carrier_id')->from('carrier_range_prices')
+    //                     ->where('zone_id', $zone);
+    //             })->orWhere('free_shipping', 1);
+    //             $carrier_list = $carrier_query->get();
+
+    //             if (count($carrier_list) > 1) {
+    //                 $default_carrier_id = $carrier_list->toQuery()->first()->id;
+    //             }
+    //         }
+
+    //         foreach ($carts as $key => $cartItem) {
+    //             $product = Product::find($cartItem['product_id']);
+    //             $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+
+    //             if (get_setting('shipping_type') == 'carrier_wise_shipping') {
+    //                 $cartItem['shipping_cost'] = $country_id != 0 ? getShippingCost($carts, $key, $shipping_info, $default_carrier_id) : 0;
+    //             } else {
+    //                 $cartItem['shipping_cost'] = getShippingCost($carts, $key, $shipping_info);
+    //             }
+    //             $cartItem['shipping_type'] = $default_shipping_type;
+    //             $cartItem['carrier_id'] = $default_carrier_id;
+    //             $shipping += $cartItem['shipping_cost'];
+    //             $shipping=round($shipping);
+    //             $cartItem->save();
+    //         }
+    //         $total = $subtotal + $tax + $shipping;
+
+    //         $carts = $carts->fresh();
+
+    //         return view('frontend.shipping_info', compact('carts', 'address_id', 'total', 'carrier_list', 'shipping_info'));
+    //     }
+    //     flash(translate('Please Select cart items to Proceed'))->error();
+    //     return back();
+    // }
     public function index(Request $request)
     {
-        if(get_setting('guest_checkout_activation') == 0 && auth()->user() == null){
+        // Log start of the index function
+        Log::info('Checkout index function initiated');
+
+        // Redirect guest users if guest checkout is disabled
+        if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
+            Log::warning('Guest checkout is disabled, redirecting to login');
             return redirect()->route('user.login');
         }
 
-        if(auth()->check() && !$request->user()->hasVerifiedEmail()){
+        // Check if the authenticated user has verified their email
+        if (auth()->check() && !$request->user()->hasVerifiedEmail()) {
+            Log::warning('User email not verified, redirecting to verification notice');
             return redirect()->route('verification.notice');
         }
 
-        $country_id = 0;
-        $city_id = 0;
-        $address_id = 0;
-        $shipping_info = array();
+        $user = auth()->user();
+        $temp_user_id = session('temp_user_id');
 
-        if (auth()->check()) {
-            $user_id = Auth::user()->id;
-            $carts = Cart::where('user_id', $user_id)->active()->get();
-            $addresses = Address::where('user_id', $user_id)->get();
-            if(count($addresses)){
-                $address = $addresses->toQuery()->first();
-                $address_id = $address->id;
-                $country_id = $address->country_id;
-                $city_id = $address->city_id;
-                $default_address =$addresses->toQuery()->where('set_default', 1)->first();
-                if($default_address != null){
-                    $address_id = $default_address->id;
-                    $country_id = $default_address->country_id;
-                    $city_id = $default_address->city_id;
-                }
-            }
-        }
-        else {
-            $temp_user_id = $request->session()->get('temp_user_id');
-            $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
+        $carts = $user ? Cart::where('user_id', $user->id)->active()->get() : Cart::where('temp_user_id', $temp_user_id)->active()->get();
+
+        // Check if there are items in the cart
+        if ($carts->isEmpty()) {
+            Log::error('No cart items found, redirecting to home');
+            flash(translate('Please select cart items to proceed'))->error();
+            return redirect()->route('home');
         }
 
-        $shipping_info['country_id'] = $country_id;
-        $shipping_info['city_id'] = $city_id;
-        $total = 0;
-        $tax = 0;
-        $shipping = 0;
-        $subtotal = 0;
-        $default_carrier_id = null;
-        $default_shipping_type = 'home_delivery';
+        // Additional data needed for view
+        $address = $user ? Address::where('user_id', $user->id)->first() : null;
+        $country_id = $address ? $address->country_id : 0;
+        $city_id = $address ? $address->city_id : 0;
+        $total = $carts->sum(function($cart) {
+            return cart_product_price($cart, $cart->product, false, false) * $cart->quantity;
+        });
 
-        if ($carts && count($carts) > 0) {
-            $carts->toQuery()->update(['address_id' => $address_id]);
-            $carts = $carts->fresh();
+        Log::info('Rendering checkout page', [
+            'user_id' => $user ? $user->id : 'guest',
+            'cart_count' => $carts->count(),
+            'total_amount' => $total,
+            'country_id' => $country_id,
+            'city_id' => $city_id
+        ]);
 
-            $carrier_list = array();
-            if (get_setting('shipping_type') == 'carrier_wise_shipping') {
-                $default_shipping_type = 'carrier';
-                $zone = $country_id != 0 ? Country::where('id', $country_id)->first()->zone_id : 0;
-
-                $carrier_query = Carrier::where('status', 1);
-                $carrier_query->whereIn('id',function ($query) use ($zone) {
-                    $query->select('carrier_id')->from('carrier_range_prices')
-                        ->where('zone_id', $zone);
-                })->orWhere('free_shipping', 1);
-                $carrier_list = $carrier_query->get();
-
-                if (count($carrier_list) > 1) {
-                    $default_carrier_id = $carrier_list->toQuery()->first()->id;
-                }
-            }
-
-            foreach ($carts as $key => $cartItem) {
-                $product = Product::find($cartItem['product_id']);
-                $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-
-                if (get_setting('shipping_type') == 'carrier_wise_shipping') {
-                    $cartItem['shipping_cost'] = $country_id != 0 ? getShippingCost($carts, $key, $shipping_info, $default_carrier_id) : 0;
-                } else {
-                    $cartItem['shipping_cost'] = getShippingCost($carts, $key, $shipping_info);
-                }
-                $cartItem['shipping_type'] = $default_shipping_type;
-                $cartItem['carrier_id'] = $default_carrier_id;
-                $shipping += $cartItem['shipping_cost'];
-                $shipping=round($shipping);
-                $cartItem->save();
-            }
-            $total = $subtotal + $tax + $shipping;
-
-            $carts = $carts->fresh();
-
-            return view('frontend.shipping_info', compact('carts', 'address_id', 'total', 'carrier_list', 'shipping_info'));
-        }
-        flash(translate('Please Select cart items to Proceed'))->error();
-        return back();
+        return view('frontend.shipping_info', compact('carts', 'total', 'address', 'country_id', 'city_id'));
     }
+
 
     //check the selected payment gateway and redirect to that controller accordingly
     // public function checkout(Request $request)
@@ -219,99 +267,90 @@ class CheckoutController extends Controller
 
     public function checkout(Request $request)
     {
-        // Attempt to create a guest user if none is authenticated
-        if(auth()->user() == null){
+        // Log the start of the checkout process
+        Log::info('Checkout process initiated');
+
+        // Check if the user is a guest and create a user if needed
+        if (auth()->user() == null) {
             $guest_user = $this->createUser($request->except('_token', 'payment_option'));
-
-            // Check if createUser returned errors
             if (gettype($guest_user) == "object") {
-                $errors = $guest_user;
-                return redirect()->route('checkout')->withErrors($errors);
+                Log::error('Guest user creation failed with errors', ['errors' => $guest_user]);
+                return redirect()->route('checkout')->withErrors($guest_user);
             }
-
-            // If guest creation fails, redirect to checkout with an error
             if ($guest_user == 0) {
                 flash(translate('Please try again later.'))->warning();
                 return redirect()->route('checkout');
             }
         }
 
-        // Check if a payment option was selected
+        // Log user ID
+        $user = auth()->user();
+        Log::info('User identified for checkout', ['user_id' => $user->id]);
+
+        // Check if payment option is selected
         if ($request->payment_option == null) {
             flash(translate('Please select a payment option.'))->warning();
             return redirect()->route('checkout.shipping_info');
         }
 
-        // Retrieve user and cart data
-        $user = auth()->user();
+        // Retrieve carts and check minimum order amount if required
         $carts = Cart::where('user_id', $user->id)->active()->get();
-
-        // Check if the minimum order amount condition is met
-        if(get_setting('minimum_order_amount_check') == 1){
-            $subtotal = 0;
-            foreach ($carts as $cartItem) {
-                $product = Product::find($cartItem['product_id']);
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-            }
+        if (get_setting('minimum_order_amount_check') == 1) {
+            $subtotal = $carts->sum(function($cartItem) {
+                return cart_product_price($cartItem, $cartItem->product, false, false) * $cartItem->quantity;
+            });
             if ($subtotal < get_setting('minimum_order_amount')) {
                 flash(translate('Your order amount is less than the minimum order amount'))->warning();
                 return redirect()->route('home');
             }
         }
 
-        // Attempt to store the order
+        // Store the order and log the combined order ID if successful
         $combined_order = (new OrderController)->store($request);
         if ($combined_order == null) {
             flash(translate('Order creation failed. Please try again.'))->error();
             return redirect()->route('checkout');
         }
+        Log::info('Combined order created', ['combined_order_id' => $combined_order->id]);
 
-        // Store the combined order ID in session
+        // Save the combined order ID in the session
         $request->session()->put('combined_order_id', $combined_order->id);
 
-        // Clear the cart for the current user
-        if (count($carts) > 0) {
-            Cart::where('user_id', $user->id)->delete();
-        }
+        // Clear the user cart after creating the order
+        $carts->each->delete();
 
-        // Store payment type in session
+        // Set payment type in session
         $request->session()->put('payment_type', 'cart_payment');
 
-        // Store additional payment data
-        $data['combined_order_id'] = $combined_order->id;
-        $data['payment_method'] = $request->payment_option;
+        // Store payment data in session for redirection
+        $data = [
+            'combined_order_id' => $combined_order->id,
+            'payment_method' => $request->payment_option
+        ];
         $request->session()->put('payment_data', $data);
 
-        // Process payment based on the selected payment option
-        if ($combined_order->id != null) {
-            // Redirect to specific payment controller if it exists
-            $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
-            if (class_exists($decorator)) {
-                return (new $decorator)->pay($request);
-            } else {
-                // Manual payment or Cash on Delivery handling
-                $manual_payment_data = [
+        // Process payment or redirect based on the payment option selected
+        $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
+        if (class_exists($decorator)) {
+            Log::info('Redirecting to payment controller', ['payment_controller' => $decorator]);
+            return (new $decorator)->pay($request);
+        } else {
+            // Handle offline payments (e.g., cash on delivery)
+            foreach ($combined_order->orders as $order) {
+                $order->manual_payment = 1;
+                $order->manual_payment_data = json_encode([
                     'name' => $request->payment_option,
                     'amount' => $combined_order->grand_total,
                     'trx_id' => $request->trx_id,
                     'photo' => $request->photo
-                ];
-                foreach ($combined_order->orders as $order) {
-                    $order->manual_payment = 1;
-                    $order->manual_payment_data = json_encode($manual_payment_data);
-                    $order->save();
-                }
-
-                flash(translate('Your order has been placed successfully.'))->success();
-                return redirect()->route('order_confirmed');
+                ]);
+                $order->save();
             }
+            Log::info('Order confirmed, redirecting to confirmation page', ['combined_order_id' => $combined_order->id]);
+            flash(translate('Your order has been placed successfully.'))->success();
+            return redirect()->route('order_confirmed');
         }
-
-        flash(translate('Order creation failed. Please try again.'))->error();
-        return redirect()->route('checkout');
     }
-
-
 
     public function createUser($guest_shipping_info)
     {
@@ -908,37 +947,27 @@ class CheckoutController extends Controller
     // }
     public function order_confirmed()
     {
-        // Check if combined_order_id exists in the session
-        if (!Session::has('combined_order_id')) {
-            // Redirect back with an error message if not found
-            flash(translate('Order confirmation failed. Please try again.'))->error();
+        Log::info('Order confirmation initiated', ['combined_order_id' => session('combined_order_id')]);
+
+        if (!session()->has('combined_order_id')) {
+            Log::warning('Order confirmation attempted without combined order ID');
             return redirect()->route('checkout');
         }
 
-        // Retrieve the combined order
-        $combined_order = CombinedOrder::find(Session::get('combined_order_id'));
+        $combined_order = CombinedOrder::findOrFail(session('combined_order_id'));
 
-        // If the order was not found (safety check)
-        if (!$combined_order) {
-            flash(translate('Order not found. Please try again.'))->error();
-            return redirect()->route('checkout');
-        }
+        // Clear session data
+        session()->forget('combined_order_id');
+        session()->forget('payment_type');
+        session()->forget('payment_data');
 
-        // Delete the user's cart items after order is confirmed
+        // Delete the cart for the confirmed order
         Cart::where('user_id', $combined_order->user_id)->delete();
 
-        // Clear session data related to the order
-        Session::forget('club_point');
-        Session::forget('combined_order_id');
-
-        // Uncomment this to send notifications if needed
-        // foreach($combined_order->orders as $order) {
-        //     NotificationUtility::sendOrderPlacedNotification($order);
-        // }
-
-        // Display the order confirmation page
+        Log::info('Order confirmed successfully', ['combined_order_id' => $combined_order->id]);
         return view('frontend.order_confirmed', compact('combined_order'));
     }
+
 
 
     public function guestCustomerInfoCheck(Request $request){
