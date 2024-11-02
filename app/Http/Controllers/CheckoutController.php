@@ -426,6 +426,8 @@ class CheckoutController extends Controller
 
     public function createUser($guest_shipping_info)
     {
+        \Log::info('Starting createUser function with data:', $guest_shipping_info);
+    
         $validator = Validator::make($guest_shipping_info, [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
@@ -439,6 +441,7 @@ class CheckoutController extends Controller
         ]);
     
         if ($validator->fails()) {
+            \Log::error('Validation failed:', $validator->errors()->toArray());
             return $validator->errors();
         }
     
@@ -457,27 +460,9 @@ class CheckoutController extends Controller
             ]
         );
     
-        // Send account opening email if the user is new
-        if ($user->wasRecentlyCreated) {
-            $array = [
-                'email' => $user->email,
-                'password' => $password,
-                'subject' => translate('Account Opening Email'),
-                'from' => env('MAIL_FROM_ADDRESS')
-            ];
+        \Log::info('User creation status:', ['user' => $user, 'isNew' => $user->wasRecentlyCreated]);
     
-            try {
-                Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
-                if ($isEmailVerificationEnabled == 1) {
-                    $user->sendEmailVerificationNotification();
-                }
-            } catch (\Exception $e) {
-                $success = 0;
-                $user->delete();
-                return $success;
-            }
-        }
-    
+        // Temporarily skip email sending
         if ($success == 0) {
             return $success;
         }
@@ -496,15 +481,17 @@ class CheckoutController extends Controller
         $address->gstin = $guest_shipping_info['gstin'] ?? null;
         $address->save();
     
+        \Log::info('Address saved for user ID:', ['user_id' => $user->id, 'address_id' => $address->id]);
+    
         // Update the cart with the user ID and address ID
         $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        $carts->each(function ($cart) use ($user, $address) {
+        foreach ($carts as $cart) {
             $cart->update([
                 'user_id' => $user->id,
                 'address_id' => $address->id,
                 'temp_user_id' => null
             ]);
-        });
+        }
     
         auth()->login($user);
     
@@ -514,6 +501,7 @@ class CheckoutController extends Controller
         // Return the user and address data for order processing
         return ['user' => $user, 'address' => $address];
     }
+    
     
 
     
