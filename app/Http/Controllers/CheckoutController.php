@@ -143,7 +143,7 @@ class CheckoutController extends Controller
             }
         }
 
-        if ($request->payment_option == null && !session()->has('cod')) {
+        if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
             flash(translate('Please select a payment option.'))->warning();
             return redirect()->route('checkout.shipping_info');
         }
@@ -209,6 +209,8 @@ class CheckoutController extends Controller
                     $order->manual_payment_data = json_encode($manual_payment_data);
                     $order->save();
                 }
+                Log::info('Combined Order ID at order_confirmed:', ['combined_order_id' => session('combined_order_id')]);
+
                 flash(translate('Your order has been placed successfully. Please submit payment information from purchase history'))->success();
                 return redirect()->route('order_confirmed');
             }

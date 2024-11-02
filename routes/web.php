@@ -293,7 +293,7 @@ Route::group(['middleware' => ['customer', 'verified', 'unbanned']], function ()
         Route::controller(CheckoutController::class)->group(function () {
             Route::post('/apply-club-point', 'apply_club_point')->name('checkout.apply_club_point');
             Route::post('/remove-club-point', 'remove_club_point')->name('checkout.remove_club_point');
-            Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
+            // Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed');
         });
     });
 });
@@ -306,6 +306,7 @@ Route::group(['prefix' => 'checkout'], function () {
         Route::post('/delivery-info', 'store_shipping_info')->name('checkout.store_shipping_infostore'); // Store shipping info
         Route::post('/payment-select', 'store_delivery_info')->name('checkout.store_delivery_info'); // Store delivery info
         Route::post('/payment', 'checkout')->name('payment.checkout'); // Payment step
+        Route::get('/order-confirmed', 'order_confirmed')->name('order_confirmed'); // Open to all users
         Route::post('/get-pick-up-points', 'get_pick_up_points')->name('shipping_info.get_pick_up_points'); // Pick-up points
         Route::get('/payment-select', 'get_payment_info')->name('checkout.payment_info'); // Payment info page
         Route::post('/apply-coupon-code', 'apply_coupon_code')->name('checkout.apply_coupon_code'); // Apply coupon
