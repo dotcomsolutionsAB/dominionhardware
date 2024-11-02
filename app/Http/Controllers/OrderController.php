@@ -473,82 +473,85 @@ class OrderController extends Controller
     //     \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
     // }
     public function store(Request $request)
-    {
-        \Log::info('OrderController@store started');
-        
-        // Fetch cart items for the authenticated user
-        $carts = Cart::where('user_id', Auth::id())->get();
-        
-        if ($carts->isEmpty()) {
-            \Log::warning('No items in the cart for user', ['user_id' => Auth::id()]);
-            flash(translate('Your cart is empty'))->warning();
-            return redirect()->route('cart');
-        }
+{
+    \Log::info('OrderController@store started');
     
-        // Retrieve the address from the first cart item
-        $address = Address::find($carts->first()->address_id);
-        if (!$address) {
-            \Log::error('Address not found for user', ['user_id' => Auth::id()]);
-            flash(translate('Address not found for this order'))->warning();
-            return redirect()->route('checkout.shipping_info');
-        }
+    // Fetch cart items for the authenticated user
+    $carts = Cart::where('user_id', Auth::id())->get();
     
-        // Create the combined order
-        $combined_order = new CombinedOrder;
-        $combined_order->user_id = Auth::id();
-        $combined_order->shipping_address = json_encode([
-            'name' => Auth::user()->name,
-            'email' => Auth::user()->email,
-            'address' => $address->address,
-            'country' => $address->country->name,
-            'state' => $address->state->name,
-            'city' => $address->city->name,
-            'postal_code' => $address->postal_code,
-            'phone' => $address->phone,
-            'gstin' => $address->gstin,
-        ]);
-        $combined_order->save();
-    
-        // Group items by seller and create orders
-        $seller_products = $carts->groupBy('product.user_id');
-        foreach ($seller_products as $seller_id => $items) {
-            $order = new Order;
-            $order->combined_order_id = $combined_order->id;
-            $order->user_id = Auth::id();
-            $order->shipping_address = $combined_order->shipping_address;
-            $order->payment_type = $request->payment_option;
-            $order->delivery_viewed = '0';
-            $order->payment_status_viewed = '0';
-            $order->code = date('Ymd-His') . rand(10, 99);
-            $order->date = now();
-            $order->save();
-    
-            $subtotal = 0;
-            $tax = 0;
-            $shipping = 0;
-    
-            foreach ($items as $cart) {
-                $product = Product::find($cart->product_id);
-                $subtotal += $cart->price * $cart->quantity;
-                $tax += $cart->tax * $cart->quantity;
-                $shipping += $cart->shipping_cost;
-    
-                $orderDetail = new OrderDetail;
-                $orderDetail->order_id = $order->id;
-                $orderDetail->product_id = $product->id;
-                $orderDetail->price = $cart->price * $cart->quantity;
-                $orderDetail->tax = $cart->tax * $cart->quantity;
-                $orderDetail->quantity = $cart->quantity;
-                $orderDetail->save();
-            }
-    
-            $order->grand_total = $subtotal + $tax + $shipping;
-            $order->save();
-        }
-    
-        $request->session()->put('combined_order_id', $combined_order->id);
-        return redirect()->route('order_confirmed');
+    if ($carts->isEmpty()) {
+        \Log::warning('No items in the cart for user', ['user_id' => Auth::id()]);
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('cart');
     }
+
+    // Retrieve the address from the first cart item
+    $address = Address::find($carts->first()->address_id);
+    if (!$address) {
+        \Log::error('Address not found for user', ['user_id' => Auth::id()]);
+        flash(translate('Address not found for this order'))->warning();
+        return redirect()->route('checkout.shipping_info');
+    }
+
+    // Build the shipping address with null checks
+    $shippingAddress = [
+        'name' => Auth::user()->name,
+        'email' => Auth::user()->email,
+        'address' => $address->address,
+        'country' => $address->country ? $address->country->name : 'N/A',
+        'state' => $address->state ? $address->state->name : 'N/A',
+        'city' => $address->city ? $address->city->name : 'N/A',
+        'postal_code' => $address->postal_code,
+        'phone' => $address->phone,
+        'gstin' => $address->gstin,
+    ];
+
+    // Create the combined order
+    $combined_order = new CombinedOrder;
+    $combined_order->user_id = Auth::id();
+    $combined_order->shipping_address = json_encode($shippingAddress);
+    $combined_order->save();
+
+    $seller_products = $carts->groupBy('product.user_id');
+    foreach ($seller_products as $seller_id => $items) {
+        $order = new Order;
+        $order->combined_order_id = $combined_order->id;
+        $order->user_id = Auth::id();
+        $order->shipping_address = $combined_order->shipping_address;
+        $order->payment_type = $request->payment_option;
+        $order->delivery_viewed = '0';
+        $order->payment_status_viewed = '0';
+        $order->code = date('Ymd-His') . rand(10, 99);
+        $order->date = now();
+        $order->save();
+
+        $subtotal = 0;
+        $tax = 0;
+        $shipping = 0;
+
+        foreach ($items as $cart) {
+            $product = Product::find($cart->product_id);
+            $subtotal += $cart->price * $cart->quantity;
+            $tax += $cart->tax * $cart->quantity;
+            $shipping += $cart->shipping_cost;
+
+            $orderDetail = new OrderDetail;
+            $orderDetail->order_id = $order->id;
+            $orderDetail->product_id = $product->id;
+            $orderDetail->price = $cart->price * $cart->quantity;
+            $orderDetail->tax = $cart->tax * $cart->quantity;
+            $orderDetail->quantity = $cart->quantity;
+            $orderDetail->save();
+        }
+
+        $order->grand_total = $subtotal + $tax + $shipping;
+        $order->save();
+    }
+
+    $request->session()->put('combined_order_id', $combined_order->id);
+    return redirect()->route('order_confirmed');
+}
+
     
 
     /**
