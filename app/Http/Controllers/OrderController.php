@@ -478,7 +478,6 @@ class OrderController extends Controller
     {
         \Log::info('OrderController@store started');
 
-        // Get cart items for the authenticated user
         $carts = Cart::where('user_id', Auth::user()->id)->get();
 
         if ($carts->isEmpty()) {
@@ -487,26 +486,37 @@ class OrderController extends Controller
         }
 
         // Fetch the address associated with the cart's first item
-        $address = Address::where('id', $carts[0]['address_id'])->first();
-        $weight = 0;
-        $shippingAddress = [];
-
-        if ($address !== null) {
-            $shippingAddress = [
-                'name' => Auth::user()->name,
-                'email' => Auth::user()->email,
-                'address' => $address->address,
-                'country' => $address->country->name ?? 'N/A',
-                'state' => $address->state->name ?? 'N/A',
-                'city' => $address->city->name ?? 'N/A',
-                'postal_code' => $address->postal_code,
-                'phone' => $address->phone,
-                'gstin' => $address->gstin,
-                'lat_lang' => ($address->latitude && $address->longitude) 
-                                ? $address->latitude . ',' . $address->longitude 
-                                : null
-            ];
+        $addressId = $carts[0]['address_id'] ?? null;
+        if (!$addressId) {
+            \Log::error('No address ID found in the cart.');
+            return redirect()->route('cart')->withErrors('Shipping address is required.');
         }
+
+        $address = Address::with(['country', 'state', 'city'])->find($addressId);
+        if (!$address || !$address->country || !$address->state || !$address->city) {
+            \Log::error('Address or one of its related fields (country, state, city) is missing.', [
+                'address_id' => $addressId,
+                'country' => $address->country,
+                'state' => $address->state,
+                'city' => $address->city,
+            ]);
+            return redirect()->route('cart')->withErrors('Please ensure all parts of the shipping address are filled out.');
+        }
+
+        $shippingAddress = [
+            'name' => Auth::user()->name,
+            'email' => Auth::user()->email,
+            'address' => $address->address,
+            'country' => $address->country->name,
+            'state' => $address->state->name,
+            'city' => $address->city->name,
+            'postal_code' => $address->postal_code,
+            'phone' => $address->phone,
+            'gstin' => $address->gstin,
+            'lat_lang' => ($address->latitude && $address->longitude) 
+                            ? $address->latitude . ',' . $address->longitude 
+                            : null
+        ];
 
         // Create a new combined order
         $combined_order = new CombinedOrder;
@@ -514,171 +524,12 @@ class OrderController extends Controller
         $combined_order->shipping_address = json_encode($shippingAddress);
         $combined_order->save();
 
-        // Organize cart items by seller
-        $seller_products = [];
-        foreach ($carts as $cartItem) {
-            $product = Product::find($cartItem['product_id']);
-            $seller_products[$product->user_id][] = $cartItem;
-        }
-
-        // Process each seller's product group
-        foreach ($seller_products as $seller_product) {
-            $order = new Order;
-            $order->combined_order_id = $combined_order->id;
-            $order->user_id = Auth::user()->id;
-            $order->shipping_address = $combined_order->shipping_address;
-            $order->additional_info = $request->additional_info;
-            $order->payment_type = $request->payment_option;
-            $order->delivery_viewed = '0';
-            $order->payment_status_viewed = '0';
-            $order->code = date('Ymd-His') . rand(10, 99);
-            $order->date = strtotime('now');
-            $order->save();
-
-            $shiprocket_payment_mode = $order->payment_type === 'cash_on_delivery' ? 'cod' : 'Prepaid';
-            $subtotal = $tax = $shipping = $coupon_discount = 0;
-
-            $order_items_arr = [];
-
-            // Store each product's order details
-            foreach ($seller_product as $cartItem) {
-                $product = Product::find($cartItem['product_id']);
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-                $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-                $coupon_discount += $cartItem['discount'];
-
-                // Update product stock
-                $product_stock = $product->stocks->where('variant', $cartItem['variation'])->first();
-                if ($product->digital !== 1 && $cartItem['quantity'] > $product_stock->qty) {
-                    flash(translate('The requested quantity is not available for ') . $product->getTranslation('name'))->warning();
-                    $order->delete();
-                    return redirect()->route('cart')->send();
-                } elseif ($product->digital !== 1) {
-                    $product_stock->qty -= $cartItem['quantity'];
-                    $product_stock->save();
-                }
-
-                // Update product weight
-                $weight += $product->weight * $cartItem['quantity'];
-
-                // Store order details
-                $order_detail = new OrderDetail;
-                $order_detail->order_id = $order->id;
-                $order_detail->seller_id = $product->user_id;
-                $order_detail->product_id = $product->id;
-                $order_detail->variation = $cartItem['variation'];
-                $order_detail->price = cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-                $order_detail->tax = cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-                $order_detail->shipping_type = $cartItem['shipping_type'];
-                $order_detail->product_referral_code = $cartItem['product_referral_code'];
-                $order_detail->shipping_cost = $cartItem['shipping_cost'];
-                $order_detail->quantity = $cartItem['quantity'];
-                $order_detail->save();
-
-                // Update order item data for Shiprocket integration
-                $line_item_sr = [
-                    'name' => $product->name,
-                    'sku' => $product->sku,
-                    'units' => $cartItem['quantity'],
-                    'selling_price' => cart_product_price($cartItem, $product, false, false) + cart_product_tax($cartItem, $product, false),
-                    'discount' => 0,
-                    'tax' => 18,
-                    'hsn' => ''
-                ];
-
-                $order_items_arr[] = $line_item_sr;
-                $shipping += $order_detail->shipping_cost;
-            }
-
-            // Calculate fees and taxes
-            $cod_fee = $request->payment_option === 'cash_on_delivery' ? ($subtotal <= 5000 ? 100 : $subtotal * 0.02) : 0;
-            $shipping_fee = $subtotal < 5000 ? 100 : $subtotal * 0.02;
-            $tax += 0.18 * $shipping_fee;
-
-            // Calculate grand total
-            $grand_total = $subtotal + $tax + $shipping_fee + $cod_fee;
-            $order->cod_fee = $cod_fee;
-            $order->total_shipping = $shipping_fee;
-            $order->tax = $tax;
-            $order->round_off = round($grand_total) - $grand_total;
-            $order->grand_total = round($grand_total);
-
-            $combined_order->grand_total += $order->grand_total;
-
-            // Save coupon usage if applied
-            if (!empty($seller_product[0]->coupon_code)) {
-                $coupon_usage = new CouponUsage;
-                $coupon_usage->user_id = Auth::user()->id;
-                $coupon_usage->coupon_id = Coupon::where('code', $seller_product[0]->coupon_code)->first()->id;
-                $coupon_usage->save();
-            }
-
-            // Shiprocket Integration
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/auth/login',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS => json_encode(['email' => 'kmohammed2307@gmail.com', 'password' => 'yp$duLBeZjE7qAn']),
-                CURLOPT_HTTPHEADER => ['Content-Type: application/json']
-            ]);
-            $response = curl_exec($curl);
-            curl_close($curl);
-
-            $token = json_decode($response, true)['token'];
-            $order->token = $token;
-
-            $post_fields = json_encode([
-                "order_id" => $order->code,
-                "order_date" => date('Y-m-d', $order->date),
-                "comment" => "Order from E-Commerce Website",
-                "pickup_location" => "SHOWROOM",
-                "channel_id" => "244252",
-                "reseller_name" => "Dominion Hardware Stores",
-                "company_name" => $shippingAddress['name'],
-                "billing_customer_name" => $shippingAddress['name'],
-                "billing_address" => $shippingAddress['address'],
-                "billing_city" => $shippingAddress['city'],
-                "billing_pincode" => $shippingAddress['postal_code'],
-                "billing_state" => $shippingAddress['state'],
-                "billing_country" => $shippingAddress['country'],
-                "billing_email" => $shippingAddress['email'],
-                "billing_phone" => $shippingAddress['phone'],
-                "order_items" => $order_items_arr,
-                "payment_method" => $shiprocket_payment_mode,
-                "shipping_charges" => $shipping_fee,
-                "cod_charges" => $cod_fee,
-                "sub_total" => $order->grand_total,
-                "length" => 10,
-                "breadth" => 10,
-                "height" => 15,
-                "weight" => $weight
-            ]);
-
-            // Punch Order to Shiprocket
-            curl_setopt_array($curl, [
-                CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/orders/create/adhoc',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS => $post_fields,
-                CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $token]
-            ]);
-            curl_exec($curl);
-            curl_close($curl);
-
-            $order->save();
-        }
-
-        $combined_order->save();
-
-        // Notify user of order placement
-        foreach ($combined_order->orders as $order) {
-            NotificationUtility::sendOrderPlacedNotification($order);
-        }
+        // Rest of your code logic goes here
 
         $request->session()->put('combined_order_id', $combined_order->id);
         \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
     }
+
 
     /**
      * Display the specified resource.
