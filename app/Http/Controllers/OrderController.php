@@ -474,143 +474,144 @@ class OrderController extends Controller
     // }
 
     public function store(Request $request)
-{
-    \Log::info('OrderController@store started');
-    
-    // Fetch cart items for the authenticated user
-    $carts = Cart::where('user_id', Auth::user()->id)->get();
-    if ($carts->isEmpty()) {
-        flash(translate('Your cart is empty'))->warning();
-        return redirect()->route('home');
-    }
+    {
+        \Log::info('OrderController@store started');
 
-    // Fetch the address associated with the first cart item
-    $address = Address::where('id', $carts[0]['address_id'])->first();
-    if (!$address) {
-        \Log::error('Address not found for cart item.');
-        flash(translate('Address not found for this order'))->warning();
-        return redirect()->route('checkout.shipping_info');
-    }
-
-    // Prepare shipping address details
-    $shippingAddress = [];
-    if ($address) {
-        $shippingAddress['name']        = Auth::user()->name ?? 'Guest';
-        $shippingAddress['email']       = Auth::user()->email ?? '';
-        $shippingAddress['address']     = $address->address;
-        $shippingAddress['country']     = $address->country->name ?? 'Unknown Country';
-        $shippingAddress['state']       = $address->state->name ?? 'Unknown State';
-        $shippingAddress['city']        = $address->city->name ?? 'Unknown City';
-        $shippingAddress['postal_code'] = $address->postal_code;
-        $shippingAddress['phone']       = $address->phone ?? 'N/A';
-        $shippingAddress['gstin']       = $address->gstin;
-        if ($address->latitude || $address->longitude) {
-            $shippingAddress['lat_lang'] = $address->latitude . ',' . $address->longitude;
+        // Fetch cart items for the authenticated user
+        $carts = Cart::where('user_id', Auth::user()->id)->get();
+        if ($carts->isEmpty()) {
+            flash(translate('Your cart is empty'))->warning();
+            return redirect()->route('home');
         }
-    }
 
-    // Initialize a new combined order
-    $combined_order = new CombinedOrder;
-    $combined_order->user_id = Auth::user()->id;
-    $combined_order->shipping_address = json_encode($shippingAddress);
-    $combined_order->save();
-
-    // Initialize arrays for seller products
-    $seller_products = [];
-    foreach ($carts as $cartItem) {
-        $product = Product::find($cartItem['product_id']);
-        if ($product) {
-            $product_ids = $seller_products[$product->user_id] ?? [];
-            array_push($product_ids, $cartItem);
-            $seller_products[$product->user_id] = $product_ids;
-        } else {
-            \Log::warning('Product not found for cart item', ['cart_item' => $cartItem]);
+        // Fetch the address associated with the first cart item
+        $address = Address::where('id', $carts[0]['address_id'])->first();
+        if (!$address) {
+            \Log::error('Address not found for cart item.');
+            flash(translate('Address not found for this order'))->warning();
+            return redirect()->route('checkout.shipping_info');
         }
-    }
 
-    foreach ($seller_products as $seller_product) {
-        $order = new Order;
-        $order->combined_order_id = $combined_order->id;
-        $order->user_id = Auth::user()->id;
-        $order->shipping_address = $combined_order->shipping_address;
-        $order->additional_info = $request->additional_info;
-        $order->payment_type = $request->payment_option;
-        $order->delivery_viewed = '0';
-        $order->payment_status_viewed = '0';
-        $order->code = date('Ymd-His') . rand(10, 99);
-        $order->date = strtotime('now');
-        $order->save();
+        // Prepare shipping address details
+        $shippingAddress = [];
+        if ($address) {
+            $shippingAddress['name']        = Auth::user()->name ?? 'Guest';
+            $shippingAddress['email']       = Auth::user()->email ?? '';
+            $shippingAddress['address']     = $address->address;
+            $shippingAddress['country']     = $address->country->name ?? 'Unknown Country';
+            $shippingAddress['state']       = $address->state->name ?? 'Unknown State';
+            $shippingAddress['city']        = $address->city->name ?? 'Unknown City';
+            $shippingAddress['postal_code'] = $address->postal_code;
+            $shippingAddress['phone']       = $address->phone ?? 'N/A';
+            $shippingAddress['gstin']       = $address->gstin;
+            if ($address->latitude || $address->longitude) {
+                $shippingAddress['lat_lang'] = $address->latitude . ',' . $address->longitude;
+            }
+        }
 
-        // Initialize other order details
-        $subtotal = $tax = $shipping = $coupon_discount = $cod_fee = $weight = 0;
-        $order_items_arr = [];
+        // Initialize a new combined order
+        $combined_order = new CombinedOrder;
+        $combined_order->user_id = Auth::user()->id;
+        $combined_order->shipping_address = json_encode($shippingAddress);
+        $combined_order->save();
 
-        // Process each item in the seller's product list
-        foreach ($seller_product as $cartItem) {
+        // Initialize arrays for seller products
+        $seller_products = [];
+        foreach ($carts as $cartItem) {
             $product = Product::find($cartItem['product_id']);
-            if (!$product) {
-                \Log::warning('Product not found for order item', ['cart_item' => $cartItem]);
-                continue;
+            if ($product) {
+                $product_ids = $seller_products[$product->user_id] ?? [];
+                array_push($product_ids, $cartItem);
+                $seller_products[$product->user_id] = $product_ids;
+            } else {
+                \Log::warning('Product not found for cart item', ['cart_item' => $cartItem]);
             }
-
-            $product_stock = $product->stocks->where('variant', $cartItem['variation'])->first();
-            if ($product->digital != 1 && $cartItem['quantity'] > $product_stock->qty) {
-                flash(translate('The requested quantity is not available for ') . $product->getTranslation('name'))->warning();
-                $order->delete();
-                return redirect()->route('cart');
-            } elseif ($product->digital != 1) {
-                $product_stock->qty -= $cartItem['quantity'];
-                $product_stock->save();
-            }
-
-            $weight += $product->weight * $cartItem['quantity'];
-            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-            $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-            $coupon_discount += $cartItem['discount'];
-
-            // Save order details
-            $order_detail = new OrderDetail;
-            $order_detail->order_id = $order->id;
-            $order_detail->seller_id = $product->user_id;
-            $order_detail->product_id = $product->id;
-            $order_detail->variation = $cartItem['variation'];
-            $order_detail->price = cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-            $order_detail->tax = cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-            $order_detail->shipping_cost = $cartItem['shipping_cost'];
-            $order_detail->quantity = $cartItem['quantity'];
-            $order_detail->save();
-
-            // Prepare item for Shiprocket integration
-            $line_item_sr = [
-                'name' => $product->name,
-                'sku' => $product->sku,
-                'units' => $cartItem['quantity'],
-                'selling_price' => cart_product_price($cartItem, $product, false, false) + cart_product_tax($cartItem, $product, false),
-                'discount' => 0,
-                'tax' => '18',
-                'hsn' => "",
-            ];
-            $order_items_arr[] = $line_item_sr;
-
-            $product->num_of_sale += $cartItem['quantity'];
-            $product->save();
         }
 
-        // Calculate COD and shipping fees
-        $grand_total = $subtotal + $tax + $shipping + $cod_fee;
-        $order->grand_total = round($grand_total);
-        $combined_order->grand_total += $order->grand_total;
+        foreach ($seller_products as $seller_product) {
+            $order = new Order;
+            $order->combined_order_id = $combined_order->id;
+            $order->user_id = Auth::user()->id;
+            $order->shipping_address = $combined_order->shipping_address;
+            $order->additional_info = $request->additional_info;
+            $order->payment_type = $request->payment_option;
+            $order->delivery_viewed = '0';
+            $order->payment_status_viewed = '0';
+            $order->code = date('Ymd-His') . rand(10, 99);
+            $order->date = strtotime('now');
+            $order->save();
 
-        // Store the final order
-        $order->save();
+            // Initialize other order details
+            $subtotal = $tax = $shipping = $coupon_discount = $cod_fee = $weight = 0;
+            $order_items_arr = [];
+
+            // Process each item in the seller's product list
+            foreach ($seller_product as $cartItem) {
+                $product = Product::find($cartItem['product_id']);
+                if (!$product) {
+                    \Log::warning('Product not found for order item', ['cart_item' => $cartItem]);
+                    continue;
+                }
+
+                $product_stock = $product->stocks->where('variant', $cartItem['variation'])->first();
+                if ($product->digital != 1 && $cartItem['quantity'] > $product_stock->qty) {
+                    flash(translate('The requested quantity is not available for ') . $product->getTranslation('name'))->warning();
+                    $order->delete();
+                    return redirect()->route('cart');
+                } elseif ($product->digital != 1) {
+                    $product_stock->qty -= $cartItem['quantity'];
+                    $product_stock->save();
+                }
+
+                $weight += $product->weight * $cartItem['quantity'];
+                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+                $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+                $coupon_discount += $cartItem['discount'];
+
+                // Save order details
+                $order_detail = new OrderDetail;
+                $order_detail->order_id = $order->id;
+                $order_detail->seller_id = $product->user_id;
+                $order_detail->product_id = $product->id;
+                $order_detail->variation = $cartItem['variation'];
+                $order_detail->price = cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+                $order_detail->tax = cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+                $order_detail->shipping_cost = $cartItem['shipping_cost'];
+                $order_detail->quantity = $cartItem['quantity'];
+                $order_detail->save();
+
+                // Prepare item for Shiprocket integration
+                $line_item_sr = [
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'units' => $cartItem['quantity'],
+                    'selling_price' => cart_product_price($cartItem, $product, false, false) + cart_product_tax($cartItem, $product, false),
+                    'discount' => 0,
+                    'tax' => '18',
+                    'hsn' => "",
+                ];
+                $order_items_arr[] = $line_item_sr;
+
+                $product->num_of_sale += $cartItem['quantity'];
+                $product->save();
+            }
+
+            // Calculate COD and shipping fees
+            $grand_total = $subtotal + $tax + $shipping + $cod_fee;
+            $order->grand_total = round($grand_total);
+            $combined_order->grand_total += $order->grand_total;
+
+            // Store the final order
+            $order->save();
+        }
+
+        // Save the combined order and finalize
+        $combined_order->save();
+        $request->session()->put('combined_order_id', $combined_order->id);
+
+        \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
     }
 
-    // Save the combined order and finalize
-    $combined_order->save();
-    $request->session()->put('combined_order_id', $combined_order->id);
-
-    \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
-}
 
 
 
