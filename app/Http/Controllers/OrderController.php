@@ -475,60 +475,71 @@ class OrderController extends Controller
     // }
 
     public function store(Request $request)
-    {
-        \Log::info('OrderController@store started');
+{
+    \Log::info('OrderController@store started');
 
-        $carts = Cart::where('user_id', Auth::user()->id)->get();
-
-        if ($carts->isEmpty()) {
-            flash(translate('Your cart is empty'))->warning();
-            return redirect()->route('home');
-        }
-
-        // Fetch the address associated with the cart's first item
-        $addressId = $carts[0]['address_id'] ?? null;
-        if (!$addressId) {
-            \Log::error('No address ID found in the cart.');
-            return redirect()->route('cart')->withErrors('Shipping address is required.');
-        }
-
-        $address = Address::with(['country', 'state', 'city'])->find($addressId);
-        if (!$address || !$address->country || !$address->state || !$address->city) {
-            \Log::error('Address or one of its related fields (country, state, city) is missing.', [
-                'address_id' => $addressId,
-                'country' => $address->country,
-                'state' => $address->state,
-                'city' => $address->city,
-            ]);
-            return redirect()->route('cart')->withErrors('Please ensure all parts of the shipping address are filled out.');
-        }
-
-        $shippingAddress = [
-            'name' => Auth::user()->name,
-            'email' => Auth::user()->email,
-            'address' => $address->address,
-            'country' => $address->country->name,
-            'state' => $address->state->name,
-            'city' => $address->city->name,
-            'postal_code' => $address->postal_code,
-            'phone' => $address->phone,
-            'gstin' => $address->gstin,
-            'lat_lang' => ($address->latitude && $address->longitude) 
-                            ? $address->latitude . ',' . $address->longitude 
-                            : null
-        ];
-
-        // Create a new combined order
-        $combined_order = new CombinedOrder;
-        $combined_order->user_id = Auth::user()->id;
-        $combined_order->shipping_address = json_encode($shippingAddress);
-        $combined_order->save();
-
-        // Rest of your code logic goes here
-
-        $request->session()->put('combined_order_id', $combined_order->id);
-        \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
+    // Check if the user is authenticated
+    if (!Auth::check()) {
+        \Log::error('User not authenticated');
+        return redirect()->route('login')->withErrors('Please log in to continue with your order.');
     }
+
+    // Get the authenticated user's ID
+    $userId = Auth::user()->id;
+
+    // Get cart items for the authenticated user
+    $carts = Cart::where('user_id', $userId)->get();
+
+    if ($carts->isEmpty()) {
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('home');
+    }
+
+    // Fetch the address associated with the cart's first item
+    $addressId = $carts[0]['address_id'] ?? null;
+    if (!$addressId) {
+        \Log::error('No address ID found in the cart.');
+        return redirect()->route('cart')->withErrors('Shipping address is required.');
+    }
+
+    $address = Address::with(['country', 'state', 'city'])->find($addressId);
+    if (!$address || !$address->country || !$address->state || !$address->city) {
+        \Log::error('Address or one of its related fields (country, state, city) is missing.', [
+            'address_id' => $addressId,
+            'country' => $address->country,
+            'state' => $address->state,
+            'city' => $address->city,
+        ]);
+        return redirect()->route('cart')->withErrors('Please ensure all parts of the shipping address are filled out.');
+    }
+
+    $shippingAddress = [
+        'name' => Auth::user()->name,
+        'email' => Auth::user()->email,
+        'address' => $address->address,
+        'country' => $address->country->name,
+        'state' => $address->state->name,
+        'city' => $address->city->name,
+        'postal_code' => $address->postal_code,
+        'phone' => $address->phone,
+        'gstin' => $address->gstin,
+        'lat_lang' => ($address->latitude && $address->longitude) 
+                        ? $address->latitude . ',' . $address->longitude 
+                        : null
+    ];
+
+    // Create a new combined order
+    $combined_order = new CombinedOrder;
+    $combined_order->user_id = $userId;
+    $combined_order->shipping_address = json_encode($shippingAddress);
+    $combined_order->save();
+
+    // Rest of your code logic goes here
+
+    $request->session()->put('combined_order_id', $combined_order->id);
+    \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
+}
+
 
 
     /**
