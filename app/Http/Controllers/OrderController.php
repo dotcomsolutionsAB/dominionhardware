@@ -476,34 +476,35 @@ class OrderController extends Controller
 {
     \Log::info('OrderController@store started');
     
-    // Fetch cart items for the authenticated user
-    $carts = Cart::where('user_id', Auth::id())->get();
-    
+    $user = Auth::user();
+    $carts = Cart::where('user_id', $user->id)->get();
+
     if ($carts->isEmpty()) {
-        \Log::warning('No items in the cart for user', ['user_id' => Auth::id()]);
         flash(translate('Your cart is empty'))->warning();
-        return redirect()->route('cart');
+        return redirect()->route('home');
     }
 
-    // Retrieve the address from the first cart item
-    $address = Address::find($carts->first()->address_id);
+    // Retrieve address using address_id stored in session
+    $addressId = session('address_id');
+    $address = Address::find($addressId);
+
     if (!$address) {
-        \Log::error('Address not found for user', ['user_id' => Auth::id()]);
-        flash(translate('Address not found for this order'))->warning();
+        flash(translate('Shipping address is required'))->warning();
         return redirect()->route('checkout.shipping_info');
     }
 
-    // Build the shipping address with null checks
+    // Set up shipping address array
     $shippingAddress = [
-        'name' => Auth::user()->name,
-        'email' => Auth::user()->email,
-        'address' => $address->address,
-        'country' => $address->country ? $address->country->name : 'N/A',
-        'state' => $address->state ? $address->state->name : 'N/A',
-        'city' => $address->city ? $address->city->name : 'N/A',
+        'name'        => $user->name,
+        'email'       => $user->email,
+        'address'     => $address->address,
+        'country'     => $address->country->name,
+        'state'       => $address->state->name,
+        'city'        => $address->city->name,
         'postal_code' => $address->postal_code,
-        'phone' => $address->phone,
-        'gstin' => $address->gstin,
+        'phone'       => $address->phone,
+        'gstin'       => $address->gstin,
+        'lat_lang'    => $address->latitude && $address->longitude ? $address->latitude . ',' . $address->longitude : null,
     ];
 
     // Create the combined order
