@@ -423,6 +423,7 @@ class CheckoutController extends Controller
 
     //     return $success;
     // }
+
     public function createUser($guest_shipping_info)
     {
         $validator = Validator::make($guest_shipping_info, [
@@ -434,39 +435,86 @@ class CheckoutController extends Controller
             'state_id' => 'required|integer',
             'city_id' => 'required|integer',
             'postal_code' => 'required|max:10',
+            'gstin' => 'max:255',
         ]);
     
         if ($validator->fails()) {
             return $validator->errors();
         }
     
-        $user = User::firstOrCreate(
+        $success = 1;
+        $password = substr(hash('sha512', rand()), 0, 8);
+        $isEmailVerificationEnabled = get_setting('email_verification');
+    
+        // Create or update user
+        $user = User::updateOrCreate(
             ['email' => $guest_shipping_info['email']],
             [
                 'name' => $guest_shipping_info['name'],
                 'phone' => $guest_shipping_info['phone'],
-                'password' => Hash::make(Str::random(8)), // Generate random password
+                'password' => Hash::make($password),
+                'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
             ]
         );
     
-        $address = Address::create([
-            'user_id' => $user->id,
-            'address' => $guest_shipping_info['address'],
-            'country_id' => $guest_shipping_info['country_id'],
-            'state_id' => $guest_shipping_info['state_id'],
-            'city_id' => $guest_shipping_info['city_id'],
-            'postal_code' => $guest_shipping_info['postal_code'],
-            'phone' => $guest_shipping_info['phone'],
-            'latitude' => $guest_shipping_info['latitude'] ?? null,
-            'longitude' => $guest_shipping_info['longitude'] ?? null,
-            'gstin' => $guest_shipping_info['gstin'] ?? null,
-        ]);
+        // Send account opening email if the user is new
+        if ($user->wasRecentlyCreated) {
+            $array = [
+                'email' => $user->email,
+                'password' => $password,
+                'subject' => translate('Account Opening Email'),
+                'from' => env('MAIL_FROM_ADDRESS')
+            ];
     
-        session()->put('address_id', $address->id); // Store address ID in session for retrieval later
+            try {
+                Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
+                if ($isEmailVerificationEnabled == 1) {
+                    $user->sendEmailVerificationNotification();
+                }
+            } catch (\Exception $e) {
+                $success = 0;
+                $user->delete();
+                return $success;
+            }
+        }
     
-        auth()->login($user); // Log in the new user
-        return $user;
+        if ($success == 0) {
+            return $success;
+        }
+    
+        // Save address for the user
+        $address = new Address;
+        $address->user_id = $user->id;
+        $address->address = $guest_shipping_info['address'];
+        $address->country_id = $guest_shipping_info['country_id'];
+        $address->state_id = $guest_shipping_info['state_id'];
+        $address->city_id = $guest_shipping_info['city_id'];
+        $address->postal_code = $guest_shipping_info['postal_code'];
+        $address->phone = $guest_shipping_info['phone'];
+        $address->longitude = $guest_shipping_info['longitude'] ?? null;
+        $address->latitude = $guest_shipping_info['latitude'] ?? null;
+        $address->gstin = $guest_shipping_info['gstin'] ?? null;
+        $address->save();
+    
+        // Update the cart with the user ID and address ID
+        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+        $carts->each(function ($cart) use ($user, $address) {
+            $cart->update([
+                'user_id' => $user->id,
+                'address_id' => $address->id,
+                'temp_user_id' => null
+            ]);
+        });
+    
+        auth()->login($user);
+    
+        Session::forget('temp_user_id');
+        Session::forget('guest_shipping_info');
+    
+        // Return the user and address data for order processing
+        return ['user' => $user, 'address' => $address];
     }
+    
 
     
     //redirects to this method after a successfull checkout
