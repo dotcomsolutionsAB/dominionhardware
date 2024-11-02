@@ -1,36 +1,28 @@
-<!-- resources/views/frontend/checkout_debug.blade.php -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Checkout Debug</title>
+</head>
+<body>
+    <h1>Checkout Debug Information</h1>
+    
+    <h2>Message:</h2>
+    <p>{{ $message }}</p>
 
-@extends('frontend.layouts.app')
+    <h2>Combined Order ID:</h2>
+    <p>{{ $combined_order_id }}</p>
 
-@section('content')
-    <div class="container mt-5">
-        <h2>Checkout Debug Information</h2>
-        
-        @if(isset($errors) && $errors->any())
-            <div class="alert alert-danger">
-                <ul>
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+    <h2>Session Data:</h2>
+    <pre>{{ print_r($session_data, true) }}</pre>
 
-        @if(isset($message))
-            <div class="alert alert-info">{{ $message }}</div>
-        @endif
-
-        @if(isset($combined_order_id))
-            <div class="alert alert-success">
-                Combined Order ID: {{ $combined_order_id }}
-            </div>
-        @else
-            <div class="alert alert-danger">
-                Combined Order ID not set in session.
-            </div>
-        @endif
-
-        <h4>Session Data</h4>
-        <pre>{{ print_r($session_data, true) }}</pre>
-    </div>
-@endsection
+    @if(isset($errors) && count($errors) > 0)
+        <h2>Errors:</h2>
+        <ul>
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    @endif
+</body>
+</html>
