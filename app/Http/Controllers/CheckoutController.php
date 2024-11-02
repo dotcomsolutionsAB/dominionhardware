@@ -319,109 +319,74 @@ class CheckoutController extends Controller
         $validator = Validator::make($guest_shipping_info, [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            // 'email' => 'required|email|unique:users|max:255',
             'phone' => 'required|max:12',
             'address' => 'required|max:255',
-            'country_id' => 'required|Integer',
-            'state_id' => 'required|Integer',
-            'city_id' => 'required|Integer',
-            'gstin' => 'max:255',
+            'country_id' => 'required|integer',
+            'state_id' => 'required|integer',
+            'city_id' => 'required|integer',
+            'postal_code' => 'required|string|max:20',
         ]);
 
         if ($validator->fails()) {
+            \Log::error('Validation failed for guest user creation', ['errors' => $validator->errors()]);
             return $validator->errors();
         }
 
-        $success = 1;
         $password = substr(hash('sha512', rand()), 0, 8);
         $isEmailVerificationEnabled = get_setting('email_verification');
 
-        // User Create
-        // $user = new User();
-        // $user->name = $guest_shipping_info['name'];
-        // $user->email = $guest_shipping_info['email'];
-        // $user->phone = addon_is_activated('otp_system') ? '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'] : null;
-        // $user->password = Hash::make($password);
-        // $user->email_verified_at = $isEmailVerificationEnabled != 1 ? date('Y-m-d H:m:s') : null;
-        // $user->save();
-
-        // Find or create the user
-        $user = User::updateOrCreate(
-            ['email' => $guest_shipping_info['email']],
-            [
-                'name' => $guest_shipping_info['name'],
-                'phone' => addon_is_activated('otp_system') ? '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'] : null,
-                'password' => Hash::make($password),
-                'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
-            ]
-        );
-
-        // Check if the user is newly created
-        $isNewUser = $user->wasRecentlyCreated;
-
-        // Account Opening and verification(if activated) email send
-        $array['email'] = $user->email;
-        $array['password'] = $password;
-        $array['subject'] = translate('Account Opening Email');
-        $array['from'] = env('MAIL_FROM_ADDRESS');
-
         try {
-            // Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
-            // if($isEmailVerificationEnabled == 1){
-            //     $user->sendEmailVerificationNotification();
-            // }
+            // Find or create the user
+            $user = User::updateOrCreate(
+                ['email' => $guest_shipping_info['email']],
+                [
+                    'name' => $guest_shipping_info['name'],
+                    'phone' => $guest_shipping_info['phone'],
+                    'password' => Hash::make($password),
+                    'email_verified_at' => $isEmailVerificationEnabled ? null : now(),
+                ]
+            );
 
-            // Send email only if the user is newly created
-            if ($isNewUser) {
-                Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
-                
-                // Send email verification if enabled
-                if ($isEmailVerificationEnabled == 1) {
-                    $user->sendEmailVerificationNotification();
-                }
-            }
-        } catch (\Exception $e) {
-            $success = 0;
-            // $user->delete();
-            if ($isNewUser) {
-                $user->delete(); // Delete the user if email sending fails and it is a new user
-            }
-        }
-
-        if($success == 0){
-            return $success;
-        }
-
-        // User Address Create
-        $address = new Address;
-        $address->user_id       = $user->id;
-        $address->address       = $guest_shipping_info['address'];
-        $address->country_id    = $guest_shipping_info['country_id'];
-        $address->state_id      = $guest_shipping_info['state_id'];
-        $address->city_id       = $guest_shipping_info['city_id'];
-        $address->postal_code   = $guest_shipping_info['postal_code'];
-        $address->phone         = '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'];
-        $address->longitude     = isset($guest_shipping_info['longitude']) ? $guest_shipping_info['longitude'] : null;
-        $address->latitude      = isset($guest_shipping_info['latitude']) ? $guest_shipping_info['latitude'] : null;
-        $address->gstin   = isset($guest_shipping_info['gstin']) ? $guest_shipping_info['gstin'] : null;
-        $address->save();
-
-        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        $carts->toQuery()->update([
+            // Create address for the new user
+            $address = Address::create([
                 'user_id' => $user->id,
-                'temp_user_id' => null
+                'address' => $guest_shipping_info['address'],
+                'country_id' => $guest_shipping_info['country_id'],
+                'state_id' => $guest_shipping_info['state_id'],
+                'city_id' => $guest_shipping_info['city_id'],
+                'postal_code' => $guest_shipping_info['postal_code'],
+                'phone' => $guest_shipping_info['phone'],
+                'gstin' => $guest_shipping_info['gstin'] ?? null,
+                'longitude' => $guest_shipping_info['longitude'] ?? null,
+                'latitude' => $guest_shipping_info['latitude'] ?? null,
             ]);
-        $carts->toQuery()->active()->update([
-                'address_id' => $address->id
-            ]);
 
-        auth()->login($user);
+            // Update cart items with user ID
+            $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+            if ($carts->isEmpty()) {
+                \Log::error('No cart items found for temp_user_id: ' . session('temp_user_id'));
+                return 0;
+            }
 
-        Session::forget('temp_user_id');
-        Session::forget('guest_shipping_info');
+            foreach ($carts as $cart) {
+                $cart->user_id = $user->id;
+                $cart->temp_user_id = null;
+                $cart->address_id = $address->id;
+                $cart->save();
+            }
 
-        return $success;
+            // Log the user in
+            auth()->login($user);
+            Session::forget('temp_user_id');
+            Session::forget('guest_shipping_info');
+
+            return 1;
+        } catch (\Exception $e) {
+            \Log::error('Error creating guest user or address', ['exception' => $e->getMessage()]);
+            return 0;
+        }
     }
+
 //     public function createUser($guest_shipping_info)
 // {
 //     $validator = Validator::make($guest_shipping_info, [
