@@ -423,57 +423,64 @@ class CheckoutController extends Controller
     //     return $success;
     // }
     public function createUser($guest_shipping_info)
-    {
-        $validator = Validator::make($guest_shipping_info, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'phone' => 'required|max:12',
-            'address' => 'required|max:255',
-            'country_id' => 'required|Integer',
-            'state_id' => 'required|Integer',
-            'city_id' => 'required|Integer',
-            'gstin' => 'max:255',
-        ]);
-    
-        if ($validator->fails()) {
-            return $validator->errors();
-        }
-    
-        $success = 1;
-        $password = substr(hash('sha512', rand()), 0, 8);
-        $isEmailVerificationEnabled = get_setting('email_verification');
-    
-        // Create or retrieve the user
-        $user = User::updateOrCreate(
-            ['email' => $guest_shipping_info['email']],
-            [
-                'name' => $guest_shipping_info['name'],
-                'phone' => '+'.$guest_shipping_info['phone'],
-                'password' => Hash::make($password),
-                'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
-            ]
-        );
-    
-        // Link cart items to the new user
-        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        if ($carts->isEmpty()) {
-            \Log::error('No cart items found for guest user');
-            return 0;
-        }
-    
-        foreach ($carts as $cart) {
-            $cart->user_id = $user->id;
-            $cart->temp_user_id = null;
-            $cart->save();
-        }
-    
-        // Log the user in
-        auth()->login($user);
-        Session::forget('temp_user_id');
-        Session::forget('guest_shipping_info');
-    
-        return $success;
+{
+    $validator = Validator::make($guest_shipping_info, [
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|max:255',
+        'phone' => 'required|max:12',
+        'address' => 'required|max:255',
+        'country_id' => 'required|Integer',
+        'state_id' => 'required|Integer',
+        'city_id' => 'required|Integer',
+        'gstin' => 'max:255',
+    ]);
+
+    if ($validator->fails()) {
+        return $validator->errors();
     }
+
+    $success = 1;
+    $password = substr(hash('sha512', rand()), 0, 8);
+    $isEmailVerificationEnabled = get_setting('email_verification');
+
+    // Create or retrieve the user
+    $user = User::updateOrCreate(
+        ['email' => $guest_shipping_info['email']],
+        [
+            'name' => $guest_shipping_info['name'],
+            'phone' => '+'.$guest_shipping_info['phone'],
+            'password' => Hash::make($password),
+            'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
+        ]
+    );
+
+    \Log::info('Guest user created or updated', ['user_id' => $user->id]);
+
+    // Fetch cart items for temp_user_id
+    $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+    if ($carts->isEmpty()) {
+        \Log::error('No cart items found for guest user with temp_user_id: ' . session('temp_user_id'));
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('cart');
+    }
+
+    // Reassign cart items to the new user
+    foreach ($carts as $cart) {
+        $cart->user_id = $user->id;
+        $cart->temp_user_id = null;
+        $cart->save();
+    }
+
+    \Log::info('Cart items reassigned to user_id', ['user_id' => $user->id]);
+
+    // Log the user in
+    auth()->login($user);
+    Session::forget('temp_user_id');
+    Session::forget('guest_shipping_info');
+
+    return $success;
+}
+
     
     
     
