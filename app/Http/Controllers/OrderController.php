@@ -134,348 +134,10 @@ class OrderController extends Controller
      * @return \Illuminate\Http\Response
      */
 
-    // public function store(Request $request)
-    // {
-    //     \Log::info('OrderController@store started');
-    //     // $carts = Cart::where('user_id', Auth::user()->id)->get();
-    //     $carts = Cart::where('user_id', Auth::user()->id)->active()->get();
-
-    //     if ($carts->isEmpty()) {
-    //         flash(translate('Your cart is empty'))->warning();
-    //         return redirect()->route('home');
-    //     }
-
-    //     $address = Address::where('id', $carts[0]['address_id'])->first();
-    //     $weight = 0;
-    //     $shippingAddress = [];
-    //     if ($address != null) {
-    //         $shippingAddress['name']        = Auth::user()->name;
-    //         $shippingAddress['email']       = Auth::user()->email;
-    //         $shippingAddress['address']     = $address->address;
-    //         $shippingAddress['country']     = $address->country->name;
-    //         $shippingAddress['state']       = $address->state->name;
-    //         $shippingAddress['city']        = $address->city->name;
-    //         $shippingAddress['postal_code'] = $address->postal_code;
-    //         $shippingAddress['phone']       = $address->phone;
-    //         $shippingAddress['gstin']       = $address->gstin;
-    //         if ($address->latitude || $address->longitude) {
-    //             $shippingAddress['lat_lang'] = $address->latitude . ',' . $address->longitude;
-    //         }
-    //     }
-
-    //     $combined_order = new CombinedOrder;
-    //     $combined_order->user_id = Auth::user()->id;
-    //     $combined_order->shipping_address = json_encode($shippingAddress);
-    //     $combined_order->save();
-
-    //     $seller_products = array();
-    //     foreach ($carts as $cartItem) {
-    //         $product_ids = array();
-    //         $product = Product::find($cartItem['product_id']);
-    //         if (isset($seller_products[$product->user_id])) {
-    //             $product_ids = $seller_products[$product->user_id];
-    //         }
-    //         array_push($product_ids, $cartItem);
-    //         $seller_products[$product->user_id] = $product_ids;
-    //     }
-
-    //     foreach ($seller_products as $seller_product) {
-    //         $order = new Order;
-    //         $order->combined_order_id = $combined_order->id;
-    //         $order->user_id = Auth::user()->id;
-    //         $order->shipping_address = $combined_order->shipping_address;
-
-    //         $order->additional_info = $request->additional_info;
-
-    //         // $order->shipping_type = $carts[0]['shipping_type'];
-    //         // if ($carts[0]['shipping_type'] == 'pickup_point') {
-    //         //     $order->pickup_point_id = $cartItem['pickup_point'];
-    //         // }
-    //         // if ($carts[0]['shipping_type'] == 'carrier') {
-    //         //     $order->carrier_id = $cartItem['carrier_id'];
-    //         // }
-
-    //         $order->payment_type = $request->payment_option;
-    //         $order->delivery_viewed = '0';
-    //         $order->payment_status_viewed = '0';
-    //         $order->code = date('Ymd-His') . rand(10, 99);
-    //         $order->date = strtotime('now');
-    //         $order->save();
-
-    //         $shiprocket_payment_mode = 'Prepaid';
-    //         if($order->payment_type == 'cash_on_delivery'){
-    //             $shiprocket_payment_mode = 'cod';
-    //         }
-
-    //         $subtotal = 0;
-    //         $tax = 0;
-    //         $shipping = 0;
-    //         $coupon_discount = 0;
-
-    //         //Order Details Storing
-    //         foreach ($seller_product as $cartItem) {
-    //             $product = Product::find($cartItem['product_id']);
-
-    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-    //             $tax +=  cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-    //             $coupon_discount += $cartItem['discount'];
-
-    //             $product_variation = $cartItem['variation'];
-
-    //             $product_stock = $product->stocks->where('variant', $product_variation)->first();
-    //             if ($product->digital != 1 && $cartItem['quantity'] > $product_stock->qty) {
-    //                 flash(translate('The requested quantity is not available for ') . $product->getTranslation('name'))->warning();
-    //                 $order->delete();
-    //                 return redirect()->route('cart')->send();
-    //             } elseif ($product->digital != 1) {
-    //                 $product_stock->qty -= $cartItem['quantity'];
-    //                 $product_stock->save();
-    //             }
-
-    //             $weight += $product->weight * $cartItem['quantity'];
-
-    //             $order_detail = new OrderDetail;
-    //             $order_detail->order_id = $order->id;
-    //             $order_detail->seller_id = $product->user_id;
-    //             $order_detail->product_id = $product->id;
-    //             $order_detail->variation = $product_variation;
-    //             $order_detail->price = cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-    //             $order_detail->tax = cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-    //             $order_detail->shipping_type = $cartItem['shipping_type'];
-    //             $order_detail->product_referral_code = $cartItem['product_referral_code'];
-    //             $order_detail->shipping_cost = $cartItem['shipping_cost'];
-
-    //             $shipping += $order_detail->shipping_cost;
-    //             //End of storing shipping cost
-    //             $line_item_sr['name'] = $product->name;
-    //             $line_item_sr['sku'] = $product->sku;
-    //             $line_item_sr['units'] = $cartItem['quantity'];
-    //             $line_item_sr['selling_price'] =cart_product_price($cartItem, $product, false, false)+cart_product_tax($cartItem, $product, false);
-    //             $line_item_sr['discount'] = 0;
-    //             $line_item_sr['tax'] = "18";
-    //             $line_item_sr['hsn'] = "";
-
-    //             $order_items_arr[] = $line_item_sr;
-
-    //             $order_detail->quantity = $cartItem['quantity'];
-
-    //             if (addon_is_activated('club_point')) {
-    //                 $order_detail->earn_point = $product->earn_point;
-    //             }
-                
-    //             $order_detail->save();
-
-    //             $product->num_of_sale += $cartItem['quantity'];
-    //             $product->save();
-
-    //             $order->seller_id = $product->user_id;
-    //             $order->shipping_type = $cartItem['shipping_type'];
-                
-    //             if ($cartItem['shipping_type'] == 'pickup_point') {
-    //                 $order->pickup_point_id = $cartItem['pickup_point'];
-    //             }
-    //             if ($cartItem['shipping_type'] == 'carrier') {
-    //                 $order->carrier_id = $cartItem['carrier_id'];
-    //             }
-
-    //             if ($product->added_by == 'seller' && $product->user->seller != null) {
-    //                 $seller = $product->user->seller;
-    //                 $seller->num_of_sale += $cartItem['quantity'];
-    //                 $seller->save();
-    //             }
-
-    //             if (addon_is_activated('affiliate_system')) {
-    //                 if ($order_detail->product_referral_code) {
-    //                     $referred_by_user = User::where('referral_code', $order_detail->product_referral_code)->first();
-
-    //                     $affiliateController = new AffiliateController;
-    //                     $affiliateController->processAffiliateStats($referred_by_user->id, 0, $order_detail->quantity, 0, 0);
-    //                 }
-    //             }
-    //         }
-    //         $cod_fee = 0;
-    //         $shiping=0;
-
-    //         if($request->payment_option == 'cash_on_delivery')
-    //         {
-    //             if ($subtotal <= 5000) { // Example: charge a COD fee for orders over 1000
-    //                 $cod_fee = 100;
-    //                 // $shiping = 100;  // Example COD fee
-    //             }else{
-    //                 $cod_fee = $subtotal * 0.02;
-    //                 // $shipping = $subtotal * 0.02;
-    //             }
-    //             // $tax += (0.18 * $cod_fee);
-    //         }
-
-    //         if ($subtotal < 5000) {
-    //             $shiping = 100;  // Example COD fee
-    //         }else{
-    //             $shipping = $subtotal * 0.02;
-    //         }
-
-    //         $tax += (0.18 * $shipping);
-
-    //         $grand_total = $subtotal + $tax + $shipping + $cod_fee ;
-    //         $rounded_grand_total = round($grand_total);
-    //         $round_off = $rounded_grand_total - $grand_total;
-
-    //         $order->cod_fee = $cod_fee;
-    //         $order->total_shipping = $shipping;
-    //         $order->tax = $tax;
-    //         $order->round_off = $round_off;
-    //         $order->grand_total = $rounded_grand_total;
-
-    //         if ($seller_product[0]->coupon_code != null) {
-    //             $order->coupon_discount = $coupon_discount;
-    //             $order->grand_total -= $coupon_discount;
-
-    //             $coupon_usage = new CouponUsage;
-    //             $coupon_usage->user_id = Auth::user()->id;
-    //             $coupon_usage->coupon_id = Coupon::where('code', $seller_product[0]->coupon_code)->first()->id;
-    //             $coupon_usage->save();
-    //         }
-
-    //         $combined_order->grand_total += $order->grand_total;
-
-    //           // if (!isset($shippingAddress['name'])) {
-    //         //     throw new Exception("Undefined array key 'name' in \$shippingAddress");
-    //         // }
-
-    //         // Shiprocket Integration
-    //         $curl = curl_init();
-
-    //         curl_setopt_array($curl, array(
-    //         CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/auth/login',
-    //         CURLOPT_RETURNTRANSFER => true,
-    //         CURLOPT_ENCODING => '',
-    //         CURLOPT_MAXREDIRS => 10,
-    //         CURLOPT_TIMEOUT => 0,
-    //         CURLOPT_FOLLOWLOCATION => true,
-    //         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-    //         CURLOPT_CUSTOMREQUEST => 'POST',
-    //         CURLOPT_POSTFIELDS =>'{
-    //             "email": "kmohammed2307@gmail.com",
-    //             "password": "yp$duLBeZjE7qAn"
-    //         }',
-    //         // CURLOPT_POSTFIELDS =>'{
-    //         //     "email": "dotcomsolutions.apps@gmail.com",
-    //         //     "password": "Rh]DqqHR4/<=#"
-    //         // }',
-    //         CURLOPT_HTTPHEADER => array(
-    //             'Content-Type: application/json'
-    //         ),
-    //         ));
-
-    //         $response = curl_exec($curl);
-    //         curl_close($curl);
-
-    //         $responseArray = json_decode($response, true);
-    //         $token = $responseArray['token'];
-
-    //         $order->token = $token;
-
-    //         // "pickup_location" : "Dot Com Solutions",
-    //         // "channel_id" : "342406", 
-
-    //         // "pickup_location": "Global M",
-    //         // "channel_id": "825274",
-
-    //         // if($shipping = 100){
-    //         //     $order->grand_total=$order->grand_total-$shipping;
-    //         // }
-
-    //         $post_fields = '{
-    //             "order_id": "'.$order->code.'",
-    //             "order_date": "'.date('Y-m-d', $order->date).'",
-                
-
-    //             "comment": "Order from E-Commerce Website",
-
-    //             "pickup_location":"SHOWROOM",
-    //             "channel_id":"244252",
-
-    //             "reseller_name": "Dominion Hardware Stores",
-    //             "company_name": "'.$shippingAddress['name'].'",
-    //             "billing_customer_name": "'.$shippingAddress['name'].' ",
-    //             "billing_last_name": "",
-    //             "billing_address": "'.$shippingAddress['address'].'",
-    //             "billing_address_2": "",
-    //             "billing_isd_code": "",
-    //             "billing_city": "'.$shippingAddress['city'].'",
-    //             "billing_pincode": "'.$shippingAddress['postal_code'].'",
-    //             "billing_state": "'.$shippingAddress['state'].'",
-    //             "billing_country": "'.$shippingAddress['country'].'",
-    //             "billing_email": "'.$shippingAddress['email'].'",
-    //             "billing_phone": "'.$shippingAddress['phone'].'",
-    //             "billing_alternate_phone":"",
-    //             "shipping_is_billing": true,
-    //             "shipping_customer_name": "",
-    //             "shipping_last_name": "",
-    //             "shipping_address": "",
-    //             "shipping_address_2": "",
-    //             "shipping_city": "",
-    //             "shipping_pincode": "",
-    //             "shipping_country": "",
-    //             "shipping_state": "",
-    //             "shipping_email": "",
-    //             "shipping_phone": "",
-    //             "order_items": '.json_encode($order_items_arr).',
-    //             "payment_method": "'.$shiprocket_payment_mode.'",
-    //             "shipping_charges": "'.$shipping.'",
-    //             "cod_charges":"'.$cod_fee.'",
-    //             "giftwrap_charges": 0,
-    //             "transaction_charges": 0,
-    //             "total_discount": 0,
-    //             "sub_total": '.(($shipping == 100) ? ($order->grand_total - $shipping) : $order->grand_total).',
-    //             "length": 10,
-    //             "breadth": 10,
-    //             "height": 15,
-    //             "weight": '.$weight.',
-    //             "ewaybill_no": "",
-    //             "customer_gstin": "",
-    //             "invoice_number":"",
-    //             "order_type":""
-    //         }';
-
-    //         //Punch Order to Shiprocket
-    //         $curl = curl_init();
-
-    //         curl_setopt_array($curl, array(
-    //         CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/orders/create/adhoc',
-    //         CURLOPT_RETURNTRANSFER => true,
-    //         CURLOPT_ENCODING => '',
-    //         CURLOPT_MAXREDIRS => 10,
-    //         CURLOPT_TIMEOUT => 0,
-    //         CURLOPT_FOLLOWLOCATION => true,
-    //         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-    //         CURLOPT_CUSTOMREQUEST => 'POST',
-    //         CURLOPT_POSTFIELDS => $post_fields,
-    //         CURLOPT_HTTPHEADER => array(
-    //             'Content-Type: application/json',
-    //             'Authorization: Bearer '.$token
-    //         ),
-    //         ));
-
-    //         $response = curl_exec($curl);
-
-    //         curl_close($curl);
-
-    //         $order->save();
-    //     }
-
-    //     $combined_order->save();
-
-    //     foreach($combined_order->orders as $order){
-    //         NotificationUtility::sendOrderPlacedNotification($order);
-    //     }
-
-    //     $request->session()->put('combined_order_id', $combined_order->id);
-    //     \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
-    // }
-    
     public function store(Request $request)
     {
+        \Log::info('OrderController@store started');
+        // $carts = Cart::where('user_id', Auth::user()->id)->get();
         $carts = Cart::where('user_id', Auth::user()->id)->active()->get();
 
         if ($carts->isEmpty()) {
@@ -485,7 +147,6 @@ class OrderController extends Controller
 
         $address = Address::where('id', $carts[0]['address_id'])->first();
         $weight = 0;
-
         $shippingAddress = [];
         if ($address != null) {
             $shippingAddress['name']        = Auth::user()->name;
@@ -496,6 +157,7 @@ class OrderController extends Controller
             $shippingAddress['city']        = $address->city->name;
             $shippingAddress['postal_code'] = $address->postal_code;
             $shippingAddress['phone']       = $address->phone;
+            $shippingAddress['gstin']       = $address->gstin;
             if ($address->latitude || $address->longitude) {
                 $shippingAddress['lat_lang'] = $address->latitude . ',' . $address->longitude;
             }
@@ -522,7 +184,17 @@ class OrderController extends Controller
             $order->combined_order_id = $combined_order->id;
             $order->user_id = Auth::user()->id;
             $order->shipping_address = $combined_order->shipping_address;
+
             $order->additional_info = $request->additional_info;
+
+            // $order->shipping_type = $carts[0]['shipping_type'];
+            // if ($carts[0]['shipping_type'] == 'pickup_point') {
+            //     $order->pickup_point_id = $cartItem['pickup_point'];
+            // }
+            // if ($carts[0]['shipping_type'] == 'carrier') {
+            //     $order->carrier_id = $cartItem['carrier_id'];
+            // }
+
             $order->payment_type = $request->payment_option;
             $order->delivery_viewed = '0';
             $order->payment_status_viewed = '0';
@@ -540,12 +212,8 @@ class OrderController extends Controller
             $shipping = 0;
             $coupon_discount = 0;
 
-            $order_items_arr = []; // Initialize the array to collect all product details
-
             //Order Details Storing
             foreach ($seller_product as $cartItem) {
-
-                $line_item_sr = array();
                 $product = Product::find($cartItem['product_id']);
 
                 $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
@@ -554,17 +222,15 @@ class OrderController extends Controller
 
                 $product_variation = $cartItem['variation'];
 
-                // $product_stock = $product->stocks->where('variant', $product_variation)->first();
-                // if ($product->digital != 1 && $cartItem['quantity'] > $product_stock->qty) {
-                //     flash(translate('The requested quantity is not available for ') . $product->getTranslation('name'))->warning();
-                //     $order->delete();
-                //     return redirect()->route('cart')->send();
-                // } elseif ($product->digital != 1) {
-                //     $product_stock->qty -= $cartItem['quantity'];
-                //     $product_stock->save();
-                // }
-
-                
+                $product_stock = $product->stocks->where('variant', $product_variation)->first();
+                if ($product->digital != 1 && $cartItem['quantity'] > $product_stock->qty) {
+                    flash(translate('The requested quantity is not available for ') . $product->getTranslation('name'))->warning();
+                    $order->delete();
+                    return redirect()->route('cart')->send();
+                } elseif ($product->digital != 1) {
+                    $product_stock->qty -= $cartItem['quantity'];
+                    $product_stock->save();
+                }
 
                 $weight += $product->weight * $cartItem['quantity'];
 
@@ -581,14 +247,6 @@ class OrderController extends Controller
 
                 $shipping += $order_detail->shipping_cost;
                 //End of storing shipping cost
-
-                // $line_item_sr['name'] = $product->name;
-                // $line_item_sr['sku'] = $product->sku;
-                // $line_item_sr['units'] = $cartItem['quantity'];
-                // $line_item_sr['selling_price'] = cart_product_price($cartItem, $product, false, false);
-                // $line_item_sr['discount'] = "";
-                // $line_item_sr['tax'] = cart_product_tax($cartItem, $product, false);
-                // $line_item_sr['hsn'] = "";
                 $line_item_sr['name'] = $product->name;
                 $line_item_sr['sku'] = $product->sku;
                 $line_item_sr['units'] = $cartItem['quantity'];
@@ -604,7 +262,7 @@ class OrderController extends Controller
                 if (addon_is_activated('club_point')) {
                     $order_detail->earn_point = $product->earn_point;
                 }
-
+                
                 $order_detail->save();
 
                 $product->num_of_sale += $cartItem['quantity'];
@@ -612,7 +270,7 @@ class OrderController extends Controller
 
                 $order->seller_id = $product->user_id;
                 $order->shipping_type = $cartItem['shipping_type'];
-
+                
                 if ($cartItem['shipping_type'] == 'pickup_point') {
                     $order->pickup_point_id = $cartItem['pickup_point'];
                 }
@@ -635,13 +293,38 @@ class OrderController extends Controller
                     }
                 }
             }
+            $cod_fee = 0;
+            $shiping=0;
 
-            if($subtotal < 1000){
-                $shipping = 100;
+            if($request->payment_option == 'cash_on_delivery')
+            {
+                if ($subtotal <= 5000) { // Example: charge a COD fee for orders over 1000
+                    $cod_fee = 100;
+                    // $shiping = 100;  // Example COD fee
+                }else{
+                    $cod_fee = $subtotal * 0.02;
+                    // $shipping = $subtotal * 0.02;
+                }
+                // $tax += (0.18 * $cod_fee);
             }
 
-            $order->grand_total = round($subtotal + $tax + $shipping);
-            $order->shipping = $shipping;
+            if ($subtotal < 5000) {
+                $shiping = 100;  // Example COD fee
+            }else{
+                $shipping = $subtotal * 0.02;
+            }
+
+            $tax += (0.18 * $shipping);
+
+            $grand_total = $subtotal + $tax + $shipping + $cod_fee ;
+            $rounded_grand_total = round($grand_total);
+            $round_off = $rounded_grand_total - $grand_total;
+
+            $order->cod_fee = $cod_fee;
+            $order->total_shipping = $shipping;
+            $order->tax = $tax;
+            $order->round_off = $round_off;
+            $order->grand_total = $rounded_grand_total;
 
             if ($seller_product[0]->coupon_code != null) {
                 $order->coupon_discount = $coupon_discount;
@@ -655,7 +338,7 @@ class OrderController extends Controller
 
             $combined_order->grand_total += $order->grand_total;
 
-            // if (!isset($shippingAddress['name'])) {
+              // if (!isset($shippingAddress['name'])) {
             //     throw new Exception("Undefined array key 'name' in \$shippingAddress");
             // }
 
@@ -740,7 +423,7 @@ class OrderController extends Controller
                 "order_items": '.json_encode($order_items_arr).',
                 "payment_method": "'.$shiprocket_payment_mode.'",
                 "shipping_charges": "'.$shipping.'",
-                "cod_charges":"'."100".'",
+                "cod_charges":"'.$cod_fee.'",
                 "giftwrap_charges": 0,
                 "transaction_charges": 0,
                 "total_discount": 0,
@@ -777,13 +460,330 @@ class OrderController extends Controller
             $response = curl_exec($curl);
 
             curl_close($curl);
+
             $order->save();
         }
 
         $combined_order->save();
 
+        foreach($combined_order->orders as $order){
+            NotificationUtility::sendOrderPlacedNotification($order);
+        }
+
         $request->session()->put('combined_order_id', $combined_order->id);
+        \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
     }
+    
+    // public function store(Request $request)
+    // {
+    //     $carts = Cart::where('user_id', Auth::user()->id)->active()->get();
+
+    //     if ($carts->isEmpty()) {
+    //         flash(translate('Your cart is empty'))->warning();
+    //         return redirect()->route('home');
+    //     }
+
+    //     $address = Address::where('id', $carts[0]['address_id'])->first();
+    //     $weight = 0;
+
+    //     $shippingAddress = [];
+    //     if ($address != null) {
+    //         $shippingAddress['name']        = Auth::user()->name;
+    //         $shippingAddress['email']       = Auth::user()->email;
+    //         $shippingAddress['address']     = $address->address;
+    //         $shippingAddress['country']     = $address->country->name;
+    //         $shippingAddress['state']       = $address->state->name;
+    //         $shippingAddress['city']        = $address->city->name;
+    //         $shippingAddress['postal_code'] = $address->postal_code;
+    //         $shippingAddress['phone']       = $address->phone;
+    //         if ($address->latitude || $address->longitude) {
+    //             $shippingAddress['lat_lang'] = $address->latitude . ',' . $address->longitude;
+    //         }
+    //     }
+
+    //     $combined_order = new CombinedOrder;
+    //     $combined_order->user_id = Auth::user()->id;
+    //     $combined_order->shipping_address = json_encode($shippingAddress);
+    //     $combined_order->save();
+
+    //     $seller_products = array();
+    //     foreach ($carts as $cartItem) {
+    //         $product_ids = array();
+    //         $product = Product::find($cartItem['product_id']);
+    //         if (isset($seller_products[$product->user_id])) {
+    //             $product_ids = $seller_products[$product->user_id];
+    //         }
+    //         array_push($product_ids, $cartItem);
+    //         $seller_products[$product->user_id] = $product_ids;
+    //     }
+
+    //     foreach ($seller_products as $seller_product) {
+    //         $order = new Order;
+    //         $order->combined_order_id = $combined_order->id;
+    //         $order->user_id = Auth::user()->id;
+    //         $order->shipping_address = $combined_order->shipping_address;
+    //         $order->additional_info = $request->additional_info;
+    //         $order->payment_type = $request->payment_option;
+    //         $order->delivery_viewed = '0';
+    //         $order->payment_status_viewed = '0';
+    //         $order->code = date('Ymd-His') . rand(10, 99);
+    //         $order->date = strtotime('now');
+    //         $order->save();
+
+    //         $shiprocket_payment_mode = 'Prepaid';
+    //         if($order->payment_type == 'cash_on_delivery'){
+    //             $shiprocket_payment_mode = 'cod';
+    //         }
+
+    //         $subtotal = 0;
+    //         $tax = 0;
+    //         $shipping = 0;
+    //         $coupon_discount = 0;
+
+    //         $order_items_arr = []; // Initialize the array to collect all product details
+
+    //         //Order Details Storing
+    //         foreach ($seller_product as $cartItem) {
+
+    //             $line_item_sr = array();
+    //             $product = Product::find($cartItem['product_id']);
+
+    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+    //             $tax +=  cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+    //             $coupon_discount += $cartItem['discount'];
+
+    //             $product_variation = $cartItem['variation'];
+
+    //             // $product_stock = $product->stocks->where('variant', $product_variation)->first();
+    //             // if ($product->digital != 1 && $cartItem['quantity'] > $product_stock->qty) {
+    //             //     flash(translate('The requested quantity is not available for ') . $product->getTranslation('name'))->warning();
+    //             //     $order->delete();
+    //             //     return redirect()->route('cart')->send();
+    //             // } elseif ($product->digital != 1) {
+    //             //     $product_stock->qty -= $cartItem['quantity'];
+    //             //     $product_stock->save();
+    //             // }
+
+                
+
+    //             $weight += $product->weight * $cartItem['quantity'];
+
+    //             $order_detail = new OrderDetail;
+    //             $order_detail->order_id = $order->id;
+    //             $order_detail->seller_id = $product->user_id;
+    //             $order_detail->product_id = $product->id;
+    //             $order_detail->variation = $product_variation;
+    //             $order_detail->price = cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+    //             $order_detail->tax = cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+    //             $order_detail->shipping_type = $cartItem['shipping_type'];
+    //             $order_detail->product_referral_code = $cartItem['product_referral_code'];
+    //             $order_detail->shipping_cost = $cartItem['shipping_cost'];
+
+    //             $shipping += $order_detail->shipping_cost;
+    //             //End of storing shipping cost
+
+    //             // $line_item_sr['name'] = $product->name;
+    //             // $line_item_sr['sku'] = $product->sku;
+    //             // $line_item_sr['units'] = $cartItem['quantity'];
+    //             // $line_item_sr['selling_price'] = cart_product_price($cartItem, $product, false, false);
+    //             // $line_item_sr['discount'] = "";
+    //             // $line_item_sr['tax'] = cart_product_tax($cartItem, $product, false);
+    //             // $line_item_sr['hsn'] = "";
+    //             $line_item_sr['name'] = $product->name;
+    //             $line_item_sr['sku'] = $product->sku;
+    //             $line_item_sr['units'] = $cartItem['quantity'];
+    //             $line_item_sr['selling_price'] =cart_product_price($cartItem, $product, false, false)+cart_product_tax($cartItem, $product, false);
+    //             $line_item_sr['discount'] = 0;
+    //             $line_item_sr['tax'] = "18";
+    //             $line_item_sr['hsn'] = "";
+
+    //             $order_items_arr[] = $line_item_sr;
+
+    //             $order_detail->quantity = $cartItem['quantity'];
+
+    //             if (addon_is_activated('club_point')) {
+    //                 $order_detail->earn_point = $product->earn_point;
+    //             }
+
+    //             $order_detail->save();
+
+    //             $product->num_of_sale += $cartItem['quantity'];
+    //             $product->save();
+
+    //             $order->seller_id = $product->user_id;
+    //             $order->shipping_type = $cartItem['shipping_type'];
+
+    //             if ($cartItem['shipping_type'] == 'pickup_point') {
+    //                 $order->pickup_point_id = $cartItem['pickup_point'];
+    //             }
+    //             if ($cartItem['shipping_type'] == 'carrier') {
+    //                 $order->carrier_id = $cartItem['carrier_id'];
+    //             }
+
+    //             if ($product->added_by == 'seller' && $product->user->seller != null) {
+    //                 $seller = $product->user->seller;
+    //                 $seller->num_of_sale += $cartItem['quantity'];
+    //                 $seller->save();
+    //             }
+
+    //             if (addon_is_activated('affiliate_system')) {
+    //                 if ($order_detail->product_referral_code) {
+    //                     $referred_by_user = User::where('referral_code', $order_detail->product_referral_code)->first();
+
+    //                     $affiliateController = new AffiliateController;
+    //                     $affiliateController->processAffiliateStats($referred_by_user->id, 0, $order_detail->quantity, 0, 0);
+    //                 }
+    //             }
+    //         }
+
+    //         if($subtotal < 1000){
+    //             $shipping = 100;
+    //         }
+
+    //         $order->grand_total = round($subtotal + $tax + $shipping);
+    //         $order->shipping = $shipping;
+
+    //         if ($seller_product[0]->coupon_code != null) {
+    //             $order->coupon_discount = $coupon_discount;
+    //             $order->grand_total -= $coupon_discount;
+
+    //             $coupon_usage = new CouponUsage;
+    //             $coupon_usage->user_id = Auth::user()->id;
+    //             $coupon_usage->coupon_id = Coupon::where('code', $seller_product[0]->coupon_code)->first()->id;
+    //             $coupon_usage->save();
+    //         }
+
+    //         $combined_order->grand_total += $order->grand_total;
+
+    //         // if (!isset($shippingAddress['name'])) {
+    //         //     throw new Exception("Undefined array key 'name' in \$shippingAddress");
+    //         // }
+
+    //         // Shiprocket Integration
+    //         $curl = curl_init();
+
+    //         curl_setopt_array($curl, array(
+    //         CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/auth/login',
+    //         CURLOPT_RETURNTRANSFER => true,
+    //         CURLOPT_ENCODING => '',
+    //         CURLOPT_MAXREDIRS => 10,
+    //         CURLOPT_TIMEOUT => 0,
+    //         CURLOPT_FOLLOWLOCATION => true,
+    //         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    //         CURLOPT_CUSTOMREQUEST => 'POST',
+    //         CURLOPT_POSTFIELDS =>'{
+    //             "email": "kmohammed2307@gmail.com",
+    //             "password": "yp$duLBeZjE7qAn"
+    //         }',
+    //         // CURLOPT_POSTFIELDS =>'{
+    //         //     "email": "dotcomsolutions.apps@gmail.com",
+    //         //     "password": "Rh]DqqHR4/<=#"
+    //         // }',
+    //         CURLOPT_HTTPHEADER => array(
+    //             'Content-Type: application/json'
+    //         ),
+    //         ));
+
+    //         $response = curl_exec($curl);
+    //         curl_close($curl);
+
+    //         $responseArray = json_decode($response, true);
+    //         $token = $responseArray['token'];
+
+    //         $order->token = $token;
+
+    //         // "pickup_location" : "Dot Com Solutions",
+    //         // "channel_id" : "342406", 
+
+    //         // "pickup_location": "Global M",
+    //         // "channel_id": "825274",
+
+    //         // if($shipping = 100){
+    //         //     $order->grand_total=$order->grand_total-$shipping;
+    //         // }
+
+    //         $post_fields = '{
+    //             "order_id": "'.$order->code.'",
+    //             "order_date": "'.date('Y-m-d', $order->date).'",
+                
+
+    //             "comment": "Order from E-Commerce Website",
+
+    //             "pickup_location":"SHOWROOM",
+    //             "channel_id":"244252",
+
+    //             "reseller_name": "Dominion Hardware Stores",
+    //             "company_name": "'.$shippingAddress['name'].'",
+    //             "billing_customer_name": "'.$shippingAddress['name'].' ",
+    //             "billing_last_name": "",
+    //             "billing_address": "'.$shippingAddress['address'].'",
+    //             "billing_address_2": "",
+    //             "billing_isd_code": "",
+    //             "billing_city": "'.$shippingAddress['city'].'",
+    //             "billing_pincode": "'.$shippingAddress['postal_code'].'",
+    //             "billing_state": "'.$shippingAddress['state'].'",
+    //             "billing_country": "'.$shippingAddress['country'].'",
+    //             "billing_email": "'.$shippingAddress['email'].'",
+    //             "billing_phone": "'.$shippingAddress['phone'].'",
+    //             "billing_alternate_phone":"",
+    //             "shipping_is_billing": true,
+    //             "shipping_customer_name": "",
+    //             "shipping_last_name": "",
+    //             "shipping_address": "",
+    //             "shipping_address_2": "",
+    //             "shipping_city": "",
+    //             "shipping_pincode": "",
+    //             "shipping_country": "",
+    //             "shipping_state": "",
+    //             "shipping_email": "",
+    //             "shipping_phone": "",
+    //             "order_items": '.json_encode($order_items_arr).',
+    //             "payment_method": "'.$shiprocket_payment_mode.'",
+    //             "shipping_charges": "'.$shipping.'",
+    //             "cod_charges":"'."100".'",
+    //             "giftwrap_charges": 0,
+    //             "transaction_charges": 0,
+    //             "total_discount": 0,
+    //             "sub_total": '.(($shipping == 100) ? ($order->grand_total - $shipping) : $order->grand_total).',
+    //             "length": 10,
+    //             "breadth": 10,
+    //             "height": 15,
+    //             "weight": '.$weight.',
+    //             "ewaybill_no": "",
+    //             "customer_gstin": "",
+    //             "invoice_number":"",
+    //             "order_type":""
+    //         }';
+
+    //         //Punch Order to Shiprocket
+    //         $curl = curl_init();
+
+    //         curl_setopt_array($curl, array(
+    //         CURLOPT_URL => 'https://apiv2.shiprocket.in/v1/external/orders/create/adhoc',
+    //         CURLOPT_RETURNTRANSFER => true,
+    //         CURLOPT_ENCODING => '',
+    //         CURLOPT_MAXREDIRS => 10,
+    //         CURLOPT_TIMEOUT => 0,
+    //         CURLOPT_FOLLOWLOCATION => true,
+    //         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    //         CURLOPT_CUSTOMREQUEST => 'POST',
+    //         CURLOPT_POSTFIELDS => $post_fields,
+    //         CURLOPT_HTTPHEADER => array(
+    //             'Content-Type: application/json',
+    //             'Authorization: Bearer '.$token
+    //         ),
+    //         ));
+
+    //         $response = curl_exec($curl);
+
+    //         curl_close($curl);
+    //         $order->save();
+    //     }
+
+    //     $combined_order->save();
+
+    //     $request->session()->put('combined_order_id', $combined_order->id);
+    // }
     
 
 
