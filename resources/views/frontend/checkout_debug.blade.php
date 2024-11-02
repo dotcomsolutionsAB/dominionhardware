@@ -11,7 +11,7 @@
     <p>{{ $message }}</p>
 
     <h2>Combined Order ID:</h2>
-    <p>{{ $combined_order_id }}</p>
+    <p>{{ $combined_order_id ?? 'N/A' }}</p>
 
     <h2>Session Data:</h2>
     <pre>{{ print_r($session_data, true) }}</pre>
