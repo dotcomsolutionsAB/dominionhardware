@@ -425,82 +425,83 @@ class CheckoutController extends Controller
     // }
 
     public function createUser($guest_shipping_info)
-    {
-        \Log::info('Starting createUser function with data:', $guest_shipping_info);
-    
-        $validator = Validator::make($guest_shipping_info, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'phone' => 'required|max:15',
-            'address' => 'required|max:255',
-            'country_id' => 'required|integer',
-            'state_id' => 'required|integer',
-            'city_id' => 'required|integer',
-            'postal_code' => 'required|max:10',
-            'gstin' => 'max:255',
-        ]);
-    
-        if ($validator->fails()) {
-            \Log::error('Validation failed:', $validator->errors()->toArray());
-            return $validator->errors();
-        }
-    
-        $success = 1;
-        $password = substr(hash('sha512', rand()), 0, 8);
-        $isEmailVerificationEnabled = get_setting('email_verification');
-    
-        // Create or update user
-        $user = User::updateOrCreate(
-            ['email' => $guest_shipping_info['email']],
-            [
-                'name' => $guest_shipping_info['name'],
-                'phone' => $guest_shipping_info['phone'],
-                'password' => Hash::make($password),
-                'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
-            ]
-        );
-    
-        \Log::info('User creation status:', ['user' => $user, 'isNew' => $user->wasRecentlyCreated]);
-    
-        // Temporarily skip email sending
-        if ($success == 0) {
-            return $success;
-        }
-    
-        // Save address for the user
-        $address = new Address;
-        $address->user_id = $user->id;
-        $address->address = $guest_shipping_info['address'];
-        $address->country_id = $guest_shipping_info['country_id'];
-        $address->state_id = $guest_shipping_info['state_id'];
-        $address->city_id = $guest_shipping_info['city_id'];
-        $address->postal_code = $guest_shipping_info['postal_code'];
-        $address->phone = $guest_shipping_info['phone'];
-        $address->longitude = $guest_shipping_info['longitude'] ?? null;
-        $address->latitude = $guest_shipping_info['latitude'] ?? null;
-        $address->gstin = $guest_shipping_info['gstin'] ?? null;
-        $address->save();
-    
-        \Log::info('Address saved for user ID:', ['user_id' => $user->id, 'address_id' => $address->id]);
-    
-        // Update the cart with the user ID and address ID
-        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        foreach ($carts as $cart) {
-            $cart->update([
-                'user_id' => $user->id,
-                'address_id' => $address->id,
-                'temp_user_id' => null
-            ]);
-        }
-    
-        auth()->login($user);
-    
-        Session::forget('temp_user_id');
-        Session::forget('guest_shipping_info');
-    
-        // Return the user and address data for order processing
-        return ['user' => $user, 'address' => $address];
+{
+    \Log::info('Starting createUser with guest shipping info:', $guest_shipping_info);
+
+    // Validate guest user information
+    $validator = Validator::make($guest_shipping_info, [
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|max:255',
+        'phone' => 'required|max:15',
+        'address' => 'required|max:255',
+        'country_id' => 'required|integer',
+        'state_id' => 'required|integer',
+        'city_id' => 'required|integer',
+        'postal_code' => 'required|max:10',
+        'gstin' => 'max:255',
+    ]);
+
+    if ($validator->fails()) {
+        \Log::error('Validation failed:', $validator->errors()->toArray());
+        return $validator->errors();
     }
+
+    // Create or retrieve the guest user
+    $user = User::updateOrCreate(
+        ['email' => $guest_shipping_info['email']],
+        [
+            'name' => $guest_shipping_info['name'],
+            'phone' => $guest_shipping_info['phone'],
+            'password' => Hash::make(Str::random(8)),
+            'email_verified_at' => now(),
+        ]
+    );
+
+    if (!$user->wasRecentlyCreated && !$user->exists) {
+        \Log::error('Failed to create or retrieve user.');
+        return 'User creation failed';
+    }
+
+    \Log::info('User created or retrieved:', ['user_id' => $user->id]);
+
+    // Create address record
+    $address = new Address;
+    $address->user_id = $user->id;
+    $address->address = $guest_shipping_info['address'];
+    $address->country_id = $guest_shipping_info['country_id'];
+    $address->state_id = $guest_shipping_info['state_id'];
+    $address->city_id = $guest_shipping_info['city_id'];
+    $address->postal_code = $guest_shipping_info['postal_code'];
+    $address->phone = $guest_shipping_info['phone'];
+    $address->longitude = $guest_shipping_info['longitude'] ?? null;
+    $address->latitude = $guest_shipping_info['latitude'] ?? null;
+    $address->gstin = $guest_shipping_info['gstin'] ?? null;
+
+    if (!$address->save()) {
+        \Log::error('Failed to save address.');
+        return 'Address creation failed';
+    }
+
+    \Log::info('Address created:', ['address_id' => $address->id]);
+
+    // Link cart items with user and address
+    $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+    foreach ($carts as $cart) {
+        $cart->update([
+            'user_id' => $user->id,
+            'address_id' => $address->id,
+            'temp_user_id' => null
+        ]);
+    }
+
+    // Authenticate and clean up session
+    auth()->login($user);
+    Session::forget('temp_user_id');
+    Session::forget('guest_shipping_info');
+
+    return ['user' => $user, 'address' => $address];
+}
+
     
     
 

@@ -473,85 +473,136 @@ class OrderController extends Controller
     //     \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
     // }
     public function store(Request $request)
-{
-    \Log::info('OrderController@store started');
+    {
+        \Log::info('OrderController@store started for user ID:', ['user_id' => auth()->id()]);
     
-    $user = Auth::user();
-    $carts = Cart::where('user_id', $user->id)->get();
-
-    if ($carts->isEmpty()) {
-        flash(translate('Your cart is empty'))->warning();
-        return redirect()->route('home');
-    }
-
-    // Retrieve address using address_id stored in session
-    $addressId = session('address_id');
-    $address = Address::find($addressId);
-
-    if (!$address) {
-        flash(translate('Shipping address is required'))->warning();
-        return redirect()->route('checkout.shipping_info');
-    }
-
-    // Set up shipping address array
-    $shippingAddress = [
-        'name'        => $user->name,
-        'email'       => $user->email,
-        'address'     => $address->address,
-        'country'     => $address->country->name,
-        'state'       => $address->state->name,
-        'city'        => $address->city->name,
-        'postal_code' => $address->postal_code,
-        'phone'       => $address->phone,
-        'gstin'       => $address->gstin,
-        'lat_lang'    => $address->latitude && $address->longitude ? $address->latitude . ',' . $address->longitude : null,
-    ];
-
-    // Create the combined order
-    $combined_order = new CombinedOrder;
-    $combined_order->user_id = Auth::id();
-    $combined_order->shipping_address = json_encode($shippingAddress);
-    $combined_order->save();
-
-    $seller_products = $carts->groupBy('product.user_id');
-    foreach ($seller_products as $seller_id => $items) {
-        $order = new Order;
-        $order->combined_order_id = $combined_order->id;
-        $order->user_id = Auth::id();
-        $order->shipping_address = $combined_order->shipping_address;
-        $order->payment_type = $request->payment_option;
-        $order->delivery_viewed = '0';
-        $order->payment_status_viewed = '0';
-        $order->code = date('Ymd-His') . rand(10, 99);
-        $order->date = now();
-        $order->save();
-
-        $subtotal = 0;
-        $tax = 0;
-        $shipping = 0;
-
-        foreach ($items as $cart) {
-            $product = Product::find($cart->product_id);
-            $subtotal += $cart->price * $cart->quantity;
-            $tax += $cart->tax * $cart->quantity;
-            $shipping += $cart->shipping_cost;
-
-            $orderDetail = new OrderDetail;
-            $orderDetail->order_id = $order->id;
-            $orderDetail->product_id = $product->id;
-            $orderDetail->price = $cart->price * $cart->quantity;
-            $orderDetail->tax = $cart->tax * $cart->quantity;
-            $orderDetail->quantity = $cart->quantity;
-            $orderDetail->save();
+        // Step 1: Retrieve and validate cart items
+        $carts = Cart::where('user_id', auth()->id())->get();
+        if ($carts->isEmpty()) {
+            \Log::warning('Cart is empty.');
+            flash(translate('Your cart is empty'))->warning();
+            return redirect()->route('home');
         }
-
-        $order->grand_total = $subtotal + $tax + $shipping;
-        $order->save();
+    
+        // Step 2: Retrieve the shipping address associated with the cart
+        $address = Address::where('id', $carts[0]['address_id'])->first();
+        if (!$address) {
+            \Log::error('Address not found for user cart.');
+            flash(translate('Shipping address not found.'))->warning();
+            return redirect()->route('checkout.shipping_info');
+        }
+    
+        // Step 3: Prepare shipping address details for the order
+        $shippingAddress = [
+            'name' => auth()->user()->name,
+            'email' => auth()->user()->email,
+            'address' => $address->address,
+            'country' => $address->country->name ?? 'N/A',
+            'state' => $address->state->name ?? 'N/A',
+            'city' => $address->city->name ?? 'N/A',
+            'postal_code' => $address->postal_code,
+            'phone' => $address->phone,
+            'gstin' => $address->gstin,
+            'lat_lang' => ($address->latitude && $address->longitude) ? $address->latitude . ',' . $address->longitude : null
+        ];
+    
+        // Step 4: Create the CombinedOrder
+        $combined_order = new CombinedOrder;
+        $combined_order->user_id = auth()->id();
+        $combined_order->shipping_address = json_encode($shippingAddress);
+        $combined_order->save();
+        \Log::info('Combined order created:', ['combined_order_id' => $combined_order->id]);
+    
+        // Step 5: Group products by seller for order creation
+        $seller_products = [];
+        foreach ($carts as $cartItem) {
+            $product = Product::find($cartItem->product_id);
+            if (!$product) continue;
+    
+            $seller_products[$product->user_id][] = $cartItem;
+        }
+    
+        // Step 6: Process each seller's products and create individual orders
+        foreach ($seller_products as $seller_product) {
+            $order = new Order;
+            $order->combined_order_id = $combined_order->id;
+            $order->user_id = auth()->id();
+            $order->shipping_address = $combined_order->shipping_address;
+            $order->additional_info = $request->additional_info;
+            $order->payment_type = $request->payment_option;
+            $order->delivery_viewed = '0';
+            $order->payment_status_viewed = '0';
+            $order->code = date('Ymd-His') . rand(10, 99);
+            $order->date = time();
+            $order->save();
+    
+            \Log::info('Order created:', ['order_id' => $order->id]);
+    
+            // Step 7: Calculate totals and process order details
+            $subtotal = 0;
+            $tax = 0;
+            $shipping = 0;
+            $coupon_discount = 0;
+            $order_items_arr = [];
+    
+            foreach ($seller_product as $cartItem) {
+                $product = Product::find($cartItem->product_id);
+                if (!$product) continue;
+    
+                // Calculate subtotal, tax, and shipping
+                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem->quantity;
+                $tax += cart_product_tax($cartItem, $product, false) * $cartItem->quantity;
+                $coupon_discount += $cartItem->discount;
+    
+                // Prepare order details
+                $order_detail = new OrderDetail;
+                $order_detail->order_id = $order->id;
+                $order_detail->seller_id = $product->user_id;
+                $order_detail->product_id = $product->id;
+                $order_detail->variation = $cartItem->variation;
+                $order_detail->price = cart_product_price($cartItem, $product, false, false) * $cartItem->quantity;
+                $order_detail->tax = cart_product_tax($cartItem, $product, false) * $cartItem->quantity;
+                $order_detail->shipping_type = $cartItem->shipping_type;
+                $order_detail->shipping_cost = $cartItem->shipping_cost;
+                $order_detail->quantity = $cartItem->quantity;
+                $order_detail->save();
+    
+                $shipping += $order_detail->shipping_cost;
+                $order_items_arr[] = [
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'units' => $cartItem->quantity,
+                    'selling_price' => cart_product_price($cartItem, $product, false, false),
+                    'tax' => "18",
+                    'hsn' => ""
+                ];
+            }
+    
+            // Step 8: Calculate grand total and apply fees
+            $cod_fee = ($request->payment_option == 'cash_on_delivery') ? 100 : 0;
+            $grand_total = $subtotal + $tax + $shipping + $cod_fee - $coupon_discount;
+            $order->grand_total = round($grand_total, 2);
+            $order->save();
+    
+            \Log::info('Order totals calculated and saved for order ID:', ['order_id' => $order->id]);
+    
+            // Step 9: Add order to combined order total
+            $combined_order->grand_total += $order->grand_total;
+        }
+    
+        $combined_order->save();
+    
+        // Step 10: Send order notifications if needed
+        foreach ($combined_order->orders as $order) {
+            NotificationUtility::sendOrderPlacedNotification($order);
+        }
+    
+        $request->session()->put('combined_order_id', $combined_order->id);
+        \Log::info('Set combined_order_id in session:', ['combined_order_id' => session('combined_order_id')]);
+    
+        return redirect()->route('order_confirmed');
     }
-
-    $request->session()->put('combined_order_id', $combined_order->id);
-    return redirect()->route('order_confirmed');
-}
+    
 
     
 
