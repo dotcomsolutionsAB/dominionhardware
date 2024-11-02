@@ -268,43 +268,49 @@ class CheckoutController extends Controller
     // }
 
     public function checkout(Request $request)
-    {
-        $message = ''; // Initialize the message to avoid undefined variable issues
-        $combined_order_id = null; // Initialize to handle undefined variable error
-        $session_data = session()->all(); // Retrieve session data
-    
-        // Check if guest checkout, create user
-        if(auth()->user() == null) {
-            $guest_user = $this->createUser($request->except('_token', 'payment_option'));
-    
-            if (gettype($guest_user) == "object") {
-                $errors = $guest_user;
-                return view('frontend.checkout_debug', compact('errors', 'message', 'combined_order_id', 'session_data'));
-            }
-    
-            if ($guest_user == 0) {
-                $message = 'Guest user creation failed. Please try again later.';
-                return view('frontend.checkout_debug', compact('message', 'combined_order_id', 'session_data'));
-            }
+{
+    $message = ''; // Initialize the message
+    $combined_order_id = null; // Initialize for use later
+    $session_data = session()->all(); // Retrieve session data for debugging
+
+    // Check if guest checkout, create user
+    if (auth()->user() == null) {
+        // Use session data for guest shipping info if available
+        $guest_shipping_info = $request->except('_token', 'payment_option');
+        $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
+
+        $guest_user = $this->createUser($guest_shipping_info);
+
+        if (gettype($guest_user) == "object") {
+            $errors = $guest_user;
+            return view('frontend.checkout_debug', compact('errors', 'message', 'combined_order_id', 'session_data'));
         }
-    
-        if ($request->payment_option == null) {
-            $message = 'No payment option selected.';
+
+        if ($guest_user == 0) {
+            $message = 'Guest user creation failed. Please try again later.';
             return view('frontend.checkout_debug', compact('message', 'combined_order_id', 'session_data'));
         }
-    
-        // Proceed with storing the order
-        (new OrderController)->store($request);
-    
-        // Retrieve combined order ID
-        $combined_order_id = session('combined_order_id');
-    
-        // Update message based on combined order ID presence
-        $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
-    
-        // Pass all variables to the view
-        return view('frontend.checkout_debug', compact('combined_order_id', 'session_data', 'message'));
     }
+
+    // Payment option check
+    if ($request->payment_option == null) {
+        $message = 'No payment option selected.';
+        return view('frontend.checkout_debug', compact('message', 'combined_order_id', 'session_data'));
+    }
+
+    // Proceed with storing the order
+    (new OrderController)->store($request);
+
+    // Retrieve combined order ID
+    $combined_order_id = session('combined_order_id');
+
+    // Update message based on combined order ID presence
+    $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
+
+    // Pass all variables to the view
+    return view('frontend.checkout_debug', compact('combined_order_id', 'session_data', 'message'));
+}
+
     
     
 
@@ -418,50 +424,111 @@ class CheckoutController extends Controller
     //     return $success;
     // }
     public function createUser($guest_shipping_info)
-    {
-        $validator = Validator::make($guest_shipping_info, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'phone' => 'required|max:12',
-            'address' => 'required|max:255',
-            'country_id' => 'required|Integer',
-            'state_id' => 'required|Integer',
-            'city_id' => 'required|Integer',
-            // 'gstin' => 'max:255',
-        ]);
+{
+    // Add debugging to see the guest_shipping_info structure if errors occur
+    Log::info('Guest Shipping Info:', $guest_shipping_info);
 
-        if ($validator->fails()) {
-            Log::info('Guest user validation failed:', ['errors' => $validator->errors()]);
-            return $validator->errors();
-        }
+    // Validate guest shipping information
+    $validator = Validator::make($guest_shipping_info, [
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|max:255',
+        'phone' => 'required|max:12',
+        'address' => 'required|max:255',
+        'country_id' => 'required|integer',
+        'state_id' => 'required|integer',
+        'city_id' => 'required|integer',
+        'gstin' => 'max:255',
+    ]);
 
-        $password = substr(hash('sha512', rand()), 0, 8);
-        $user = User::updateOrCreate(
-            ['email' => $guest_shipping_info['email']],
-            [
-                'name' => $guest_shipping_info['name'],
-                'phone' => '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'],
-                'password' => Hash::make($password),
-                'email_verified_at' => now(),
-            ]
-        );
-
-        if ($user->wasRecentlyCreated) {
-            Log::info('Guest user successfully created and logged in:', ['user_id' => $user->id]);
-        } else {
-            Log::info('User already existed and logged in:', ['user_id' => $user->id]);
-        }
-
-        auth()->login($user);
-
-        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        $carts->toQuery()->update(['user_id' => $user->id, 'temp_user_id' => null]);
-
-        Session::forget('temp_user_id');
-        Session::forget('guest_shipping_info');
-
-        return $user;
+    // If validation fails, log and return errors for easier debugging
+    if ($validator->fails()) {
+        Log::error('Validation errors in createUser:', $validator->errors()->toArray());
+        return $validator->errors();
     }
+
+    $success = 1;
+    $password = substr(hash('sha512', rand()), 0, 8);
+    $isEmailVerificationEnabled = get_setting('email_verification');
+
+    // Find or create the user
+    $user = User::updateOrCreate(
+        ['email' => $guest_shipping_info['email']],
+        [
+            'name' => $guest_shipping_info['name'],
+            'phone' => addon_is_activated('otp_system') && isset($guest_shipping_info['country_code'])
+                ? '+' . $guest_shipping_info['country_code'] . $guest_shipping_info['phone']
+                : $guest_shipping_info['phone'],
+            'password' => Hash::make($password),
+            'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
+        ]
+    );
+
+    // Check if the user was newly created
+    $isNewUser = $user->wasRecentlyCreated;
+
+    // Send account creation email only if a new user was created
+    if ($isNewUser) {
+        $array = [
+            'email' => $user->email,
+            'password' => $password,
+            'subject' => translate('Account Opening Email'),
+            'from' => env('MAIL_FROM_ADDRESS')
+        ];
+
+        try {
+            Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
+
+            // Send email verification if enabled
+            if ($isEmailVerificationEnabled == 1) {
+                $user->sendEmailVerificationNotification();
+            }
+        } catch (\Exception $e) {
+            Log::error('Email sending failed:', ['exception' => $e->getMessage()]);
+            $success = 0;
+            if ($isNewUser) {
+                $user->delete(); // Delete user if email sending fails and it’s a new user
+            }
+        }
+    }
+
+    if ($success == 0) {
+        return $success;
+    }
+
+    // Create user address
+    $address = new Address;
+    $address->user_id = $user->id;
+    $address->address = $guest_shipping_info['address'];
+    $address->country_id = $guest_shipping_info['country_id'];
+    $address->state_id = $guest_shipping_info['state_id'];
+    $address->city_id = $guest_shipping_info['city_id'];
+    $address->postal_code = $guest_shipping_info['postal_code'] ?? null; // Set postal code if available
+    $address->phone = isset($guest_shipping_info['country_code'])
+        ? '+' . $guest_shipping_info['country_code'] . $guest_shipping_info['phone']
+        : $guest_shipping_info['phone'];
+    $address->longitude = $guest_shipping_info['longitude'] ?? null;
+    $address->latitude = $guest_shipping_info['latitude'] ?? null;
+    $address->gstin = $guest_shipping_info['gstin'] ?? null;
+    $address->save();
+
+    // Update cart items for the user
+    $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+    $carts->toQuery()->update([
+        'user_id' => $user->id,
+        'temp_user_id' => null
+    ]);
+    $carts->toQuery()->active()->update([
+        'address_id' => $address->id
+    ]);
+
+    // Log the user in and clear session
+    auth()->login($user);
+    Session::forget('temp_user_id');
+    Session::forget('guest_shipping_info');
+
+    return $success;
+}
+
 
     //redirects to this method after a successfull checkout
     public function checkout_done($combined_order_id, $payment)
