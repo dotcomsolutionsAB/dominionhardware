@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+
+use Illuminate\Support\Facades\Log;
 use App\Mail\GuestAccountOpeningMailManager;
 use App\Utility\PayfastUtility;
 use Illuminate\Http\Request;
