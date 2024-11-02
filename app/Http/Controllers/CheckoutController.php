@@ -268,64 +268,59 @@ class CheckoutController extends Controller
     // }
 
     public function checkout(Request $request)
-    {
-        // Check if the user is logged in or create a guest user
-        if (auth()->user() == null) {
-            $guest_user = $this->createUser($request->except('_token', 'payment_option'));
-            
-            if (is_object($guest_user)) {
-                Log::info('Guest user creation failed:', ['errors' => $guest_user]);
-                return redirect()->route('checkout')->withErrors($guest_user);
-            }
-            
-            if ($guest_user == 0) {
-                Log::info('Guest user creation returned 0');
-                flash(translate('Please try again later.'))->warning();
-                return redirect()->route('checkout');
-            }
-
-            Log::info('Guest user created and logged in successfully.');
+{
+    // If guest checkout, create user
+    if(auth()->user() == null) {
+        $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+        if(gettype($guest_user) == "object") {
+            $errors = $guest_user;
+            return redirect()->route('checkout')->withErrors($errors);
         }
 
-        if ($request->payment_option == null) {
-            flash(translate('Please select a payment option.'))->warning();
-            return redirect()->route('checkout');
-        }
-        
-        $user = auth()->user();
-        $carts = Cart::where('user_id', $user->id)->active()->get();
-        
-        // Minimum order amount check
-        if (get_setting('minimum_order_amount_check') == 1) {
-            $subtotal = 0;
-            foreach ($carts as $key => $cartItem) { 
-                $product = Product::find($cartItem['product_id']);
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-            }
-            if ($subtotal < get_setting('minimum_order_amount')) {
-                flash(translate('Your order amount is less than the minimum order amount'))->warning();
-                return redirect()->route('home');
-            }
-        }
-
-        (new OrderController)->store($request);
-        
-        $combined_order_id = $request->session()->get('combined_order_id');
-        Log::info('Combined Order ID after OrderController@store:', ['combined_order_id' => $combined_order_id]);
-
-        if (count($carts) > 0) {
-            $carts->toQuery()->delete();
-        }
-
-        if ($combined_order_id) {
-            Log::info('Redirecting to order_confirmed route.');
-            return redirect()->route('order_confirmed');
-        } else {
-            Log::info('Order confirmation failed, redirecting back to checkout.');
-            flash(translate('Order confirmation failed.'))->warning();
+        if($guest_user == 0) {
+            flash(translate('Please try again later.'))->warning();
             return redirect()->route('checkout');
         }
     }
+
+    if ($request->payment_option == null) {
+        flash(translate('Please select a payment option.'))->warning();
+        return redirect()->route('checkout.shipping_info');
+    }
+
+    $user = auth()->user();
+    $carts = Cart::where('user_id', $user->id)->active()->get();
+
+    // Minimum order amount check
+    if(get_setting('minimum_order_amount_check') == 1){
+        $subtotal = 0;
+        foreach ($carts as $key => $cartItem){ 
+            $product = Product::find($cartItem['product_id']);
+            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+        }
+        if ($subtotal < get_setting('minimum_order_amount')) {
+            flash(translate('Your order amount is less than the minimum order amount'))->warning();
+            return redirect()->route('home');
+        }
+    }
+
+    // Store the order
+    (new OrderController)->store($request);
+
+    // Ensure the combined_order_id is set in the session
+    $data['combined_order_id'] = $request->session()->get('combined_order_id');
+    $request->session()->put('payment_data', $data);
+
+    // Confirm combined_order_id is set
+    if ($request->session()->has('combined_order_id')) {
+        flash(translate('Your order has been placed successfully.'))->success();
+        return redirect()->route('order_confirmed');
+    } else {
+        flash(translate('An error occurred. Please try again.'))->error();
+        return redirect()->route('checkout');
+    }
+}
+
 
 
 
@@ -969,22 +964,20 @@ class CheckoutController extends Controller
     //     return view('frontend.order_confirmed', compact('combined_order'));
     // }
     public function order_confirmed()
-    {
-        $combined_order_id = session('combined_order_id');
-        Log::info('Combined Order ID in order_confirmed:', ['combined_order_id' => $combined_order_id]);
-
-        if (!$combined_order_id) {
-            Log::error('Combined order ID missing in order_confirmed.');
-            flash(translate('Order confirmation failed.'))->error();
-            return redirect()->route('checkout');
-        }
-
-        $combined_order = CombinedOrder::findOrFail($combined_order_id);
-
-        Cart::where('user_id', $combined_order->user_id)->delete();
-
-        return view('frontend.order_confirmed', compact('combined_order'));
+{
+    if (!session()->has('combined_order_id')) {
+        flash(translate('Order confirmation failed.'))->error();
+        return redirect()->route('checkout');
     }
+
+    $combined_order = CombinedOrder::findOrFail(session('combined_order_id'));
+
+    // Clear cart items for the user
+    Cart::where('user_id', $combined_order->user_id)->delete();
+
+    return view('frontend.order_confirmed', compact('combined_order'));
+}
+
 
 
 
