@@ -636,16 +636,38 @@ class OrderController extends Controller
                 }
             }
 
-            if($subtotal < 1000){
-                $shipping = 100;
+            $cod_fee = 0;
+            $shiping=0;
+
+            if($request->payment_option == 'cash_on_delivery')
+            {
+                if ($subtotal <= 5000) { // Example: charge a COD fee for orders over 1000
+                    $cod_fee = 100;
+                    // $shiping = 100;  // Example COD fee
+                }else{
+                    $cod_fee = $subtotal * 0.02;
+                    // $shipping = $subtotal * 0.02;
+                }
+                // $tax += (0.18 * $cod_fee);
             }
 
-            $order->grand_total = round($subtotal + $tax + $shipping);
-            $order->shipping = $shipping;
+            if ($subtotal < 5000) {
+                $shiping = 100;  // Example COD fee
+            }else{
+                $shipping = $subtotal * 0.02;
+            }
 
-            if ($seller_product[0]->coupon_code != null) {
-                $order->coupon_discount = $coupon_discount;
-                $order->grand_total -= $coupon_discount;
+            $tax += (0.18 * $shipping);
+
+            $grand_total = $subtotal + $tax + $shipping + $cod_fee ;
+            $rounded_grand_total = round($grand_total);
+            $round_off = $rounded_grand_total - $grand_total;
+
+            $order->cod_fee = $cod_fee;
+            $order->total_shipping = $shipping;
+            $order->tax = $tax;
+            $order->round_off = $round_off;
+            $order->grand_total = $rounded_grand_total;
 
                 $coupon_usage = new CouponUsage;
                 $coupon_usage->user_id = Auth::user()->id;
