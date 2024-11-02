@@ -20,6 +20,7 @@ use App\Utility\NotificationUtility;
 use Session;
 use Auth;
 use Hash;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Mail;
 class CheckoutController extends Controller
@@ -444,7 +445,7 @@ class CheckoutController extends Controller
             [
                 'name' => $guest_shipping_info['name'],
                 'phone' => $guest_shipping_info['phone'],
-                'password' => Hash::make($password), // Generate random password
+                'password' => Hash::make(Str::random(8)), // Generate random password
             ]
         );
     
