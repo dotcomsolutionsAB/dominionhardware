@@ -22,6 +22,7 @@ use App\Utility\NotificationUtility;
 use CoreComponentRepository;
 use App\Utility\SmsUtility;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -134,6 +135,7 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
+        \Log::info('OrderController@store started');
         $carts = Cart::where('user_id', Auth::user()->id)
             ->get();
 
@@ -468,6 +470,7 @@ class OrderController extends Controller
         }
 
         $request->session()->put('combined_order_id', $combined_order->id);
+        \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
     }
 
     /**
