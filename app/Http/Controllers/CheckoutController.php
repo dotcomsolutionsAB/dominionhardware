@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
-
 use Illuminate\Support\Facades\Log;
 use App\Mail\GuestAccountOpeningMailManager;
 use App\Utility\PayfastUtility;
@@ -16,6 +14,7 @@ use App\Models\Address;
 use App\Models\Carrier;
 use App\Models\CombinedOrder;
 use App\Models\Product;
+use App\Models\User;
 use App\Utility\PayhereUtility;
 use App\Utility\NotificationUtility;
 use Session;
