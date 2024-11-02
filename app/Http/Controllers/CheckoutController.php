@@ -429,38 +429,52 @@ class CheckoutController extends Controller
             'email' => 'required|email|max:255',
             'phone' => 'required|max:12',
             'address' => 'required|max:255',
-            'country_id' => 'required|integer',
-            'state_id' => 'required|integer',
-            'city_id' => 'required|integer',
-            'postal_code' => 'required|max:6',
+            'country_id' => 'required|Integer',
+            'state_id' => 'required|Integer',
+            'city_id' => 'required|Integer',
+            'gstin' => 'max:255',
         ]);
     
         if ($validator->fails()) {
-            \Log::error('Validation failed for guest user creation', ['errors' => $validator->errors()]);
             return $validator->errors();
         }
     
-        try {
-            $user = User::updateOrCreate(
-                ['email' => $guest_shipping_info['email']],
-                [
-                    'name' => $guest_shipping_info['name'],
-                    'phone' => $guest_shipping_info['phone'],
-                    'password' => Hash::make(substr(hash('sha512', rand()), 0, 8)),
-                    'email_verified_at' => now(),
-                ]
-            );
-        } catch (\Exception $e) {
-            \Log::error('User creation failed', ['error' => $e->getMessage()]);
+        $success = 1;
+        $password = substr(hash('sha512', rand()), 0, 8);
+        $isEmailVerificationEnabled = get_setting('email_verification');
+    
+        // Create or retrieve the user
+        $user = User::updateOrCreate(
+            ['email' => $guest_shipping_info['email']],
+            [
+                'name' => $guest_shipping_info['name'],
+                'phone' => '+'.$guest_shipping_info['phone'],
+                'password' => Hash::make($password),
+                'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
+            ]
+        );
+    
+        // Link cart items to the new user
+        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+        if ($carts->isEmpty()) {
+            \Log::error('No cart items found for guest user');
             return 0;
         }
     
+        foreach ($carts as $cart) {
+            $cart->user_id = $user->id;
+            $cart->temp_user_id = null;
+            $cart->save();
+        }
+    
+        // Log the user in
         auth()->login($user);
         Session::forget('temp_user_id');
         Session::forget('guest_shipping_info');
     
-        return 1;
+        return $success;
     }
+    
     
     
 
