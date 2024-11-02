@@ -268,76 +268,38 @@ class CheckoutController extends Controller
     // }
 
     public function checkout(Request $request)
-    {
-        \Log::info('Started checkout process'); // Log at function start
-    
-        // Guest checkout user creation
-        if(auth()->user() == null){
-            \Log::info('Guest checkout detected');
-            $guest_user = $this->createUser($request->except('_token', 'payment_option'));
-    
-            if(gettype($guest_user) == "object") {
-                \Log::error('Error creating guest user', ['errors' => $guest_user]);
-                return redirect()->route('checkout')->withErrors($guest_user);
-            }
-    
-            if($guest_user == 0) {
-                \Log::error('Guest user creation failed');
-                flash(translate('Please try again later.'))->warning();
-                return redirect()->route('checkout');
-            }
-            \Log::info('Guest user created successfully');
+{
+    // if guest checkout, create user
+    if(auth()->user() == null) {
+        $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+
+        if (gettype($guest_user) == "object") {
+            $errors = $guest_user;
+            return view('frontend.checkout_debug', ['errors' => $errors]);
         }
-    
-        // Check payment option
-        if ($request->payment_option == null) {
-            \Log::warning('No payment option selected');
-            flash(translate('Please select a payment option.'))->warning();
-            return redirect()->route('checkout.shipping_info');
+
+        if ($guest_user == 0) {
+            return view('frontend.checkout_debug', ['message' => 'Guest user creation failed. Please try again later.']);
         }
-    
-        $user = auth()->user();
-        $carts = Cart::where('user_id', $user->id)->active()->get();
-    
-        // Minimum order check
-        if(get_setting('minimum_order_amount_check') == 1){
-            $subtotal = 0;
-            foreach ($carts as $cartItem){
-                $product = Product::find($cartItem['product_id']);
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-            }
-            if ($subtotal < get_setting('minimum_order_amount')) {
-                \Log::warning('Order amount is below minimum required');
-                flash(translate('Your order amount is less than the minimum order amount'))->warning();
-                return redirect()->route('home');
-            }
-        }
-    
-        \Log::info('Order creation started');
-        (new OrderController)->store($request);
-    
-        // Check if combined order ID is set
-        $combined_order_id = $request->session()->get('combined_order_id');
-        \Log::info('Combined order ID after store:', ['combined_order_id' => $combined_order_id]);
-    
-        if (!$combined_order_id) {
-            \Log::error('Combined order ID not found in session');
-            return redirect()->route('checkout')->withErrors(['error' => 'Order processing failed. Please try again.']);
-        }
-    
-        $request->session()->put('payment_type', 'cart_payment');
-    
-        // Set payment data in session
-        $data['combined_order_id'] = $combined_order_id;
-        $request->session()->put('payment_data', $data);
-    
-        \Log::info('Redirecting to order_confirmed page');
-        return redirect()->route('order_confirmed');
     }
-    
 
+    if ($request->payment_option == null) {
+        return view('frontend.checkout_debug', ['message' => 'No payment option selected.']);
+    }
 
+    // Proceed with storing the order
+    (new OrderController)->store($request);
 
+    // Get the combined order ID from the session
+    $combined_order_id = session('combined_order_id');
+
+    // Display combined order ID and check if redirection should happen
+    return view('frontend.checkout_debug', [
+        'combined_order_id' => $combined_order_id,
+        'session_data' => session()->all(),
+        'message' => $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.'
+    ]);
+}
 
     // public function createUser($guest_shipping_info)
     // {
