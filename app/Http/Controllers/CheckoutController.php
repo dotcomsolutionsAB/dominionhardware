@@ -424,27 +424,27 @@ class CheckoutController extends Controller
     //     return $success;
     // }
     public function createUser($guest_shipping_info)
-{
-    // Add debugging to see the guest_shipping_info structure if errors occur
-    Log::info('Guest Shipping Info:', $guest_shipping_info);
-
-    // Validate guest shipping information
-    $validator = Validator::make($guest_shipping_info, [
-        'name' => 'required|string|max:255',
-        'email' => 'required|email|max:255',
-        'phone' => 'required|max:12',
-        'address' => 'required|max:255',
-        'country_id' => 'required|integer',
-        'state_id' => 'required|integer',
-        'city_id' => 'required|integer',
-        'gstin' => 'max:255',
-    ]);
-
-    // If validation fails, log and return errors for easier debugging
-    if ($validator->fails()) {
-        Log::error('Validation errors in createUser:', $validator->errors()->toArray());
-        return $validator->errors();
-    }
+    {
+        // Log guest shipping info to verify structure
+        Log::info('Received Guest Shipping Info:', $guest_shipping_info);
+    
+        // Validate guest shipping information directly
+        $validator = Validator::make($guest_shipping_info, [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|max:12',
+            'address' => 'required|max:255',
+            'country_id' => 'required|integer',
+            'state_id' => 'required|integer',
+            'city_id' => 'required|integer',
+            'gstin' => 'max:255',
+        ]);
+    
+        // If validation fails, log errors and return them
+        if ($validator->fails()) {
+            Log::error('Validation errors in createUser:', $validator->errors()->toArray());
+            return $validator->errors();
+        }
 
     $success = 1;
     $password = substr(hash('sha512', rand()), 0, 8);
