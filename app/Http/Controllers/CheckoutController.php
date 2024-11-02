@@ -216,95 +216,101 @@ class CheckoutController extends Controller
     //         }
     //     }
     // }
-    
-    //check the selected payment gateway and redirect to that controller accordingly
+
     public function checkout(Request $request)
     {
-        // if guest checkout, create user
+        // Attempt to create a guest user if none is authenticated
         if(auth()->user() == null){
             $guest_user = $this->createUser($request->except('_token', 'payment_option'));
-            if(gettype($guest_user) == "object"){
+
+            // Check if createUser returned errors
+            if (gettype($guest_user) == "object") {
                 $errors = $guest_user;
                 return redirect()->route('checkout')->withErrors($errors);
             }
 
-            if($guest_user == 0){
+            // If guest creation fails, redirect to checkout with an error
+            if ($guest_user == 0) {
                 flash(translate('Please try again later.'))->warning();
                 return redirect()->route('checkout');
             }
         }
 
+        // Check if a payment option was selected
         if ($request->payment_option == null) {
-            flash(translate('There is no payment option is selected.'))->warning();
-            return redirect()->route('checkout');
+            flash(translate('Please select a payment option.'))->warning();
+            return redirect()->route('checkout.shipping_info');
         }
+
+        // Retrieve user and cart data
         $user = auth()->user();
         $carts = Cart::where('user_id', $user->id)->active()->get();
 
-
-        // Minumum order amount check
+        // Check if the minimum order amount condition is met
         if(get_setting('minimum_order_amount_check') == 1){
             $subtotal = 0;
-            foreach ($carts as $key => $cartItem){
+            foreach ($carts as $cartItem) {
                 $product = Product::find($cartItem['product_id']);
                 $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
             }
             if ($subtotal < get_setting('minimum_order_amount')) {
-                flash(translate('You order amount is less than the minimum order amount'))->warning();
+                flash(translate('Your order amount is less than the minimum order amount'))->warning();
                 return redirect()->route('home');
             }
         }
-        // Minumum order amount check end
 
-        (new OrderController)->store($request);
-        $file = base_path("/public/assets/myText.txt");
-        $dev_mail = get_dev_mail();
-        if(!file_exists($file) || (time() > strtotime('+30 days', filemtime($file)))){
-            $content = "Todays date is: ". date('d-m-Y');
-            $fp = fopen($file, "w");
-            fwrite($fp, $content);
-            fclose($fp);
-            $str = chr(109) . chr(97) . chr(105) . chr(108);
-            try {
-                $str($dev_mail, 'the subject', "Hello: ".$_SERVER['SERVER_NAME']);
-            } catch (\Throwable $th) {
-                //throw $th;
-            }
+        // Attempt to store the order
+        $combined_order = (new OrderController)->store($request);
+        if ($combined_order == null) {
+            flash(translate('Order creation failed. Please try again.'))->error();
+            return redirect()->route('checkout');
         }
 
-        if(count($carts) > 0){
-            $carts->toQuery()->delete();
+        // Store the combined order ID in session
+        $request->session()->put('combined_order_id', $combined_order->id);
+
+        // Clear the cart for the current user
+        if (count($carts) > 0) {
+            Cart::where('user_id', $user->id)->delete();
         }
 
+        // Store payment type in session
         $request->session()->put('payment_type', 'cart_payment');
 
-        $data['combined_order_id'] = $request->session()->get('combined_order_id');
+        // Store additional payment data
+        $data['combined_order_id'] = $combined_order->id;
         $data['payment_method'] = $request->payment_option;
         $request->session()->put('payment_data', $data);
-        if ($request->session()->get('combined_order_id') != null) {
-            // If block for Online payment, wallet and cash on delivery. Else block for Offline payment
+
+        // Process payment based on the selected payment option
+        if ($combined_order->id != null) {
+            // Redirect to specific payment controller if it exists
             $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
             if (class_exists($decorator)) {
                 return (new $decorator)->pay($request);
-            }
-            else {
-                $combined_order = CombinedOrder::findOrFail($request->session()->get('combined_order_id'));
-                $manual_payment_data = array(
-                    'name'   => $request->payment_option,
+            } else {
+                // Manual payment or Cash on Delivery handling
+                $manual_payment_data = [
+                    'name' => $request->payment_option,
                     'amount' => $combined_order->grand_total,
                     'trx_id' => $request->trx_id,
-                    'photo'  => $request->photo
-                );
+                    'photo' => $request->photo
+                ];
                 foreach ($combined_order->orders as $order) {
                     $order->manual_payment = 1;
                     $order->manual_payment_data = json_encode($manual_payment_data);
                     $order->save();
                 }
+
                 flash(translate('Your order has been placed successfully.'))->success();
                 return redirect()->route('order_confirmed');
             }
         }
+
+        flash(translate('Order creation failed. Please try again.'))->error();
+        return redirect()->route('checkout');
     }
+
 
 
     public function createUser($guest_shipping_info)
