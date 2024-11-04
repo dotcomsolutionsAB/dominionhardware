@@ -31,145 +31,146 @@ class CheckoutController extends Controller
         //
     }
 
-    // public function index(Request $request)
-    // {
-    //     if(get_setting('guest_checkout_activation') == 0 && auth()->user() == null){
-    //         return redirect()->route('user.login');
-    //     }
-
-    //     if(auth()->check() && !$request->user()->hasVerifiedEmail()){
-    //         return redirect()->route('verification.notice');
-    //     }
-
-    //     $country_id = 0;
-    //     $city_id = 0;
-    //     $address_id = 0;
-    //     $shipping_info = array();
-
-    //     if (auth()->check()) {
-    //         $user_id = Auth::user()->id;
-    //         $carts = Cart::where('user_id', $user_id)->active()->get();
-    //         $addresses = Address::where('user_id', $user_id)->get();
-    //         if(count($addresses)){
-    //             $address = $addresses->toQuery()->first();
-    //             $address_id = $address->id;
-    //             $country_id = $address->country_id;
-    //             $city_id = $address->city_id;
-    //             $default_address =$addresses->toQuery()->where('set_default', 1)->first();
-    //             if($default_address != null){
-    //                 $address_id = $default_address->id;
-    //                 $country_id = $default_address->country_id;
-    //                 $city_id = $default_address->city_id;
-    //             }
-    //         }
-    //     }
-    //     else {
-    //         $temp_user_id = $request->session()->get('temp_user_id');
-    //         $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
-    //     }
-
-    //     $shipping_info['country_id'] = $country_id;
-    //     $shipping_info['city_id'] = $city_id;
-    //     $total = 0;
-    //     $tax = 0;
-    //     $shipping = 0;
-    //     $subtotal = 0;
-    //     $default_carrier_id = null;
-    //     $default_shipping_type = 'home_delivery';
-
-    //     if ($carts && count($carts) > 0) {
-    //         $carts->toQuery()->update(['address_id' => $address_id]);
-    //         $carts = $carts->fresh();
-
-    //         $carrier_list = array();
-    //         if (get_setting('shipping_type') == 'carrier_wise_shipping') {
-    //             $default_shipping_type = 'carrier';
-    //             $zone = $country_id != 0 ? Country::where('id', $country_id)->first()->zone_id : 0;
-
-    //             $carrier_query = Carrier::where('status', 1);
-    //             $carrier_query->whereIn('id',function ($query) use ($zone) {
-    //                 $query->select('carrier_id')->from('carrier_range_prices')
-    //                     ->where('zone_id', $zone);
-    //             })->orWhere('free_shipping', 1);
-    //             $carrier_list = $carrier_query->get();
-
-    //             if (count($carrier_list) > 1) {
-    //                 $default_carrier_id = $carrier_list->toQuery()->first()->id;
-    //             }
-    //         }
-
-    //         foreach ($carts as $key => $cartItem) {
-    //             $product = Product::find($cartItem['product_id']);
-    //             $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-
-    //             if (get_setting('shipping_type') == 'carrier_wise_shipping') {
-    //                 $cartItem['shipping_cost'] = $country_id != 0 ? getShippingCost($carts, $key, $shipping_info, $default_carrier_id) : 0;
-    //             } else {
-    //                 $cartItem['shipping_cost'] = getShippingCost($carts, $key, $shipping_info);
-    //             }
-    //             $cartItem['shipping_type'] = $default_shipping_type;
-    //             $cartItem['carrier_id'] = $default_carrier_id;
-    //             $shipping += $cartItem['shipping_cost'];
-    //             $shipping=round($shipping);
-    //             $cartItem->save();
-    //         }
-    //         $total = $subtotal + $tax + $shipping;
-
-    //         $carts = $carts->fresh();
-
-    //         return view('frontend.shipping_info', compact('carts', 'address_id', 'total', 'carrier_list', 'shipping_info'));
-    //     }
-    //     flash(translate('Please Select cart items to Proceed'))->error();
-    //     return back();
-    // }
     public function index(Request $request)
     {
-        // Log start of the index function
-        Log::info('Checkout index function initiated');
-
-        // Redirect guest users if guest checkout is disabled
-        if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
-            Log::warning('Guest checkout is disabled, redirecting to login');
+        if(get_setting('guest_checkout_activation') == 0 && auth()->user() == null){
             return redirect()->route('user.login');
         }
 
-        // Check if the authenticated user has verified their email
-        if (auth()->check() && !$request->user()->hasVerifiedEmail()) {
-            Log::warning('User email not verified, redirecting to verification notice');
+        if(auth()->check() && !$request->user()->hasVerifiedEmail()){
             return redirect()->route('verification.notice');
         }
 
-        $user = auth()->user();
-        $temp_user_id = session('temp_user_id');
+        $country_id = 0;
+        $city_id = 0;
+        $address_id = 0;
+        $shipping_info = array();
 
-        $carts = $user ? Cart::where('user_id', $user->id)->active()->get() : Cart::where('temp_user_id', $temp_user_id)->active()->get();
-
-        // Check if there are items in the cart
-        if ($carts->isEmpty()) {
-            Log::error('No cart items found, redirecting to home');
-            flash(translate('Please select cart items to proceed'))->error();
-            return redirect()->route('home');
+        if (auth()->check()) {
+            $user_id = Auth::user()->id;
+            $carts = Cart::where('user_id', $user_id)->active()->get();
+            $addresses = Address::where('user_id', $user_id)->get();
+            if(count($addresses)){
+                $address = $addresses->toQuery()->first();
+                $address_id = $address->id;
+                $country_id = $address->country_id;
+                $city_id = $address->city_id;
+                $default_address =$addresses->toQuery()->where('set_default', 1)->first();
+                if($default_address != null){
+                    $address_id = $default_address->id;
+                    $country_id = $default_address->country_id;
+                    $city_id = $default_address->city_id;
+                }
+            }
+        }
+        else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = ($temp_user_id != null) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
         }
 
-        // Additional data needed for view
-        $address = $user ? Address::where('user_id', $user->id)->first() : null;
-        $country_id = $address ? $address->country_id : 0;
-        $city_id = $address ? $address->city_id : 0;
-        $total = $carts->sum(function($cart) {
-            return cart_product_price($cart, $cart->product, false, false) * $cart->quantity;
-        });
+        $shipping_info['country_id'] = $country_id;
+        $shipping_info['city_id'] = $city_id;
+        $total = 0;
+        $tax = 0;
+        $shipping = 0;
+        $subtotal = 0;
+        $default_carrier_id = null;
+        $default_shipping_type = 'home_delivery';
 
-        Log::info('Rendering checkout page', [
-            'user_id' => $user ? $user->id : 'guest',
-            'cart_count' => $carts->count(),
-            'total_amount' => $total,
-            'country_id' => $country_id,
-            'city_id' => $city_id
-        ]);
+        if ($carts && count($carts) > 0) {
+            $carts->toQuery()->update(['address_id' => $address_id]);
+            $carts = $carts->fresh();
 
-        return view('frontend.shipping_info', compact('carts', 'total', 'address', 'country_id', 'city_id'));
+            $carrier_list = array();
+            if (get_setting('shipping_type') == 'carrier_wise_shipping') {
+                $default_shipping_type = 'carrier';
+                $zone = $country_id != 0 ? Country::where('id', $country_id)->first()->zone_id : 0;
+
+                $carrier_query = Carrier::where('status', 1);
+                $carrier_query->whereIn('id',function ($query) use ($zone) {
+                    $query->select('carrier_id')->from('carrier_range_prices')
+                        ->where('zone_id', $zone);
+                })->orWhere('free_shipping', 1);
+                $carrier_list = $carrier_query->get();
+
+                if (count($carrier_list) > 1) {
+                    $default_carrier_id = $carrier_list->toQuery()->first()->id;
+                }
+            }
+
+            foreach ($carts as $key => $cartItem) {
+                $product = Product::find($cartItem['product_id']);
+                $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+
+                if (get_setting('shipping_type') == 'carrier_wise_shipping') {
+                    $cartItem['shipping_cost'] = $country_id != 0 ? getShippingCost($carts, $key, $shipping_info, $default_carrier_id) : 0;
+                } else {
+                    $cartItem['shipping_cost'] = getShippingCost($carts, $key, $shipping_info);
+                }
+                $cartItem['shipping_type'] = $default_shipping_type;
+                $cartItem['carrier_id'] = $default_carrier_id;
+                $shipping += $cartItem['shipping_cost'];
+                $shipping=round($shipping);
+                $cartItem->save();
+            }
+            $total = $subtotal + $tax + $shipping;
+
+            $carts = $carts->fresh();
+
+            return view('frontend.shipping_info', compact('carts', 'address_id', 'total', 'carrier_list', 'shipping_info'));
+        }
+        flash(translate('Please Select cart items to Proceed'))->error();
+        return back();
     }
+
+    // public function index(Request $request)
+    // {
+    //     // Log start of the index function
+    //     Log::info('Checkout index function initiated');
+
+    //     // Redirect guest users if guest checkout is disabled
+    //     if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
+    //         Log::warning('Guest checkout is disabled, redirecting to login');
+    //         return redirect()->route('user.login');
+    //     }
+
+    //     // Check if the authenticated user has verified their email
+    //     if (auth()->check() && !$request->user()->hasVerifiedEmail()) {
+    //         Log::warning('User email not verified, redirecting to verification notice');
+    //         return redirect()->route('verification.notice');
+    //     }
+
+    //     $user = auth()->user();
+    //     $temp_user_id = session('temp_user_id');
+
+    //     $carts = $user ? Cart::where('user_id', $user->id)->active()->get() : Cart::where('temp_user_id', $temp_user_id)->active()->get();
+
+    //     // Check if there are items in the cart
+    //     if ($carts->isEmpty()) {
+    //         Log::error('No cart items found, redirecting to home');
+    //         flash(translate('Please select cart items to proceed'))->error();
+    //         return redirect()->route('home');
+    //     }
+
+    //     // Additional data needed for view
+    //     $address = $user ? Address::where('user_id', $user->id)->first() : null;
+    //     $country_id = $address ? $address->country_id : 0;
+    //     $city_id = $address ? $address->city_id : 0;
+    //     $total = $carts->sum(function($cart) {
+    //         return cart_product_price($cart, $cart->product, false, false) * $cart->quantity;
+    //     });
+
+    //     Log::info('Rendering checkout page', [
+    //         'user_id' => $user ? $user->id : 'guest',
+    //         'cart_count' => $carts->count(),
+    //         'total_amount' => $total,
+    //         'country_id' => $country_id,
+    //         'city_id' => $city_id
+    //     ]);
+
+    //     return view('frontend.shipping_info', compact('carts', 'total', 'address', 'country_id', 'city_id'));
+    // }
 
 
    // check the selected payment gateway and redirect to that controller accordingly
@@ -884,7 +885,7 @@ class CheckoutController extends Controller
             $carrier_list = $carrier_query->get();
         }
 
-        return view('frontend.delivery_info', compact('carts', 'carrier_list'));
+        return view('frontend.delivery_info', compact('carts', 'carrier_list','deliveryInfo'));
     }
 
 
