@@ -470,6 +470,43 @@ class OrderController extends Controller
             NotificationUtility::sendOrderPlacedNotification($order);
         }
 
+            // Update in Google Sheet after order is generated
+            $shipping_address = json_decode($order->shipping_address);
+
+            $curl = curl_init();
+            $postData = [
+                "action" => "new_order",
+                "Client" => get_setting('site_name'),
+                "OrderNo" => "#" . $order->code,
+                "OrderDate" => date('d-m-Y h:i A', $order->date),
+                "BuyerName" => $shipping_address->name,
+                "BuyerState" => $shipping_address->state,
+                "Amount" => number_format($order->grand_total, 2, '.', ''),  // Ensuring it's a plain number
+                "PaymentMode" => $order->payment_type,
+                "Status" => $order->delivery_status
+            ];
+    
+            // Convert PHP array to JSON
+            $jsonData = json_encode($postData);
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://script.google.com/macros/s/AKfycbwdnn0HkTZ1yvWgtE7hyTCswD2o3zQBoCPCtO279QcFFJUYqii-vgaDLx9CFSNFDAwG/exec',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => $jsonData,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json'
+                ],
+            ]);
+    
+            $response = curl_exec($curl);
+            curl_close($curl);
+            echo $response;
+
         $request->session()->put('combined_order_id', $combined_order->id);
         \Log::info('Set combined_order_id in session', ['combined_order_id' => session('combined_order_id')]);
     }
@@ -910,6 +947,41 @@ class OrderController extends Controller
             $user->balance += $order->grand_total;
             $user->save();
         }
+
+
+        // Update status in Google Sheet
+        $curl = curl_init();
+
+        $postData = [
+            "action" => "update_status",
+            "OrderNo" => $order->code,
+            "Status" => $order->delivery_status
+        ];
+
+        curl_setopt_array($curl, [
+            CURLOPT_URL => 'https://script.google.com/macros/s/AKfycbwdnn0HkTZ1yvWgtE7hyTCswD2o3zQBoCPCtO279QcFFJUYqii-vgaDLx9CFSNFDAwG/exec',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $postData,  // Pass as an array
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json'
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+
+        if (curl_errno($curl)) {
+            echo 'cURL Error: ' . curl_error($curl);
+        } else {
+            echo 'Response: ' . $response;
+        }
+
+        curl_close($curl);
 
         if (Auth::user()->user_type == 'seller') {
             foreach ($order->orderDetails->where('seller_id', Auth::user()->id) as $key => $orderDetail) {
