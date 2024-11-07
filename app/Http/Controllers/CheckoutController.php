@@ -407,6 +407,7 @@ class CheckoutController extends Controller
     //     // Pass all variables to the view
     //     return view('frontend.checkout_debug', compact('combined_order_id', 'session_data', 'message'));
     // }
+    
     public function checkout(Request $request)
     {
         $message = ''; // Initialize the message
@@ -449,7 +450,9 @@ class CheckoutController extends Controller
         $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
 
         // Pass all variables to the view
-        return view('frontend.checkout', compact('combined_order_id', 'message'));
+        // return view('frontend.checkout', compact('combined_order_id', 'message'));
+        return view('frontend.checkout', compact('message', 'combined_order_id', 'address_id'));
+
     }
 
 
