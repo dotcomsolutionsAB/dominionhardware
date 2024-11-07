@@ -42,7 +42,7 @@
                                 </div>
                                 <div id="collapseDeliveryInfo" class="collapse show" aria-labelledby="headingDeliveryInfo">
                                     <div class="card-body" id="delivery_info">
-                                        @include('frontend.delivery_info', ['carts' => $carts, 'carrier_list' => $carrier_list, 'shipping_info' => $shipping_info])
+                                        @include('frontend.delivery_info', ['carts' => $carts ?? null, 'carrier_list' => $carrier_list ?? null, 'shipping_info' => $shipping_info ?? null])
                                     </div>
                                 </div>
                             </div>
@@ -60,7 +60,7 @@
                                 </div>
                                 <div id="collapsePaymentInfo" class="collapse show" aria-labelledby="headingPaymentInfo">
                                     <div class="card-body" id="payment_info">
-                                        @include('frontend.payment_select', ['carts' => $carts, 'total' => $total])
+                                        @include('frontend.payment_select', ['carts' => $carts ?? null, 'total' => $total ?? null])
                                         <div class="pt-2">
                                             <label class="aiz-checkbox">
                                                 <input type="checkbox" required id="agree_checkbox" onchange="stepCompletionPaymentInfo()">
@@ -91,7 +91,7 @@
 
                 <!-- Cart Summary -->
                 <div class="col-lg-4 mt-lg-0 mt-4" id="cart_summary">
-                    @include('frontend.'.get_setting('homepage_select').'.partials.cart_summary', ['proceed' => 0, 'carts' => $carts])
+                    @include('frontend.'.get_setting('homepage_select').'.partials.cart_summary', ['proceed' => 0, 'carts' => $carts ?? null])
                 </div>
             </div>
         </div>
