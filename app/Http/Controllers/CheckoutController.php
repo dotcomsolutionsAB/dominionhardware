@@ -412,6 +412,7 @@ class CheckoutController extends Controller
     {
         $message = ''; // Initialize the message
         $combined_order_id = null; // Initialize for use later
+        $address_id = null; // Initialize $address_id to ensure it's always defined
 
         // Check if guest checkout, create user
         if (auth()->user() == null) {
@@ -425,19 +426,19 @@ class CheckoutController extends Controller
             // Handle guest user creation errors
             if (is_object($guest_user)) {
                 $errors = $guest_user;
-                return view('frontend.checkout', compact('errors', 'message', 'combined_order_id'));
+                return view('frontend.checkout', compact('errors', 'message', 'combined_order_id','session_data'));
             }
 
             if ($guest_user == 0) {
                 $message = 'Guest user creation failed. Please try again later.';
-                return view('frontend.checkout', compact('message', 'combined_order_id'));
+                return view('frontend.checkout', compact('message', 'combined_order_id','address_id','session_data'));
             }
         }
 
         // Check if a payment option is selected
-        if ($request->payment_option == null) {
+        if ($request->payment_option != null || $request->payment_option =='cash_on_delivery') {
             $message = 'No payment option selected.';
-            return view('frontend.checkout', compact('message', 'combined_order_id'));
+            return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
         }
 
         // Proceed with storing the order
@@ -451,7 +452,7 @@ class CheckoutController extends Controller
 
         // Pass all variables to the view
         // return view('frontend.checkout', compact('combined_order_id', 'message'));
-        return view('frontend.checkout', compact('message', 'combined_order_id', 'address_id'));
+        return view('frontend.checkout', compact('message', 'combined_order_id','session_data','address_id'));
 
     }
 
