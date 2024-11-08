@@ -22,8 +22,8 @@
                                 </div>
                                 <div id="collapseShippingInfo" class="collapse show" aria-labelledby="headingShippingInfo">
                                     <div class="card-body" id="shipping_info">
-                                        @include('frontend.shipping_info', ['address_id' => $address_id ?? null])
-                                        {{ dd($address_id) }}
+                                        @include('frontend.shipping_info', ['address_id' => $address_id ?? 0000000])
+                                        {{-- {{ dd($address_id) }} --}}
 
                                     </div>
                                 </div>
