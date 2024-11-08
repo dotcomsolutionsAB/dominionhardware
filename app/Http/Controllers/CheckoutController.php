@@ -1053,7 +1053,8 @@ class CheckoutController extends Controller
                 $cartItem->save();
             }
             $total = $subtotal + $tax + $shipping;
-            
+            echo "  : carts  ";
+            dd($carts);
             // return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
             return view('frontend.checkout', compact('carts', 'shipping_info', 'total'));
         } else {
