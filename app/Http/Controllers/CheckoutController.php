@@ -1061,7 +1061,14 @@ class CheckoutController extends Controller
             return redirect()->route('home');
         }
     }
+    public function yourControllerFunction()
+    {
+        // Set some sample session data for testing
+        session()->put('test_key', 'This is a test value');
 
+        // Return your view
+        return view('frontend.checkout');
+    }
     public function apply_coupon_code(Request $request)
     {   
         $user = auth()->user();
