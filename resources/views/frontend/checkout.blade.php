@@ -5,6 +5,15 @@
         <div class="container">
             <div class="row cols-xs-space cols-sm-space cols-md-space">
                 <div class="col-xxl-8 col-xl-10 mx-auto">
+                    <!-- Session Details -->
+                    <div class="session-details mb-4 p-3 border rounded">
+                        <h5>Session Details:</h5>
+                        <ul>
+                            @foreach(session()->all() as $key => $value)
+                                <li><strong>{{ $key }}:</strong> {{ is_array($value) ? json_encode($value) : $value }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
                     <form class="form-default" action="{{ route('payment.checkout') }}" method="POST" id="checkout-form">
                         @csrf
                         <div class="accordion" id="accordioncCheckoutInfo">
