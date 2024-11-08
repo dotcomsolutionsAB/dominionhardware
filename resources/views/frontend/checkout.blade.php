@@ -10,42 +10,7 @@
                         <div class="accordion" id="accordioncCheckoutInfo">
 
                             <!-- Shipping Info -->
-                            <div class="card rounded-0 border shadow-none mb-4">
-                                <div class="card-header py-3" id="headingShippingInfo" type="button" data-toggle="collapse" data-target="#collapseShippingInfo" aria-expanded="true">
-                                    <div class="d-flex align-items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-                                            <path d="M58,48A10,10,0,1,0,68,58,10,10,0,0,0,58,48ZM56.457,61.543a.663.663,0,0,1-.423.212.693.693,0,0,1-.428-.216l-2.692-2.692.856-.856,2.269,2.269,6-6.043.841.87Z" transform="translate(-48 -48)" fill="#9d9da6"/>
-                                        </svg>
-                                        <span class="ml-2 fs-19 fw-700">{{ translate('Shipping Info') }}</span>
-                                    </div>
-                                    <i class="las la-angle-down fs-18"></i>
-                                </div>
-                                <div id="collapseShippingInfo" class="collapse show" aria-labelledby="headingShippingInfo">
-                                    <div class="card-body" id="shipping_info">
-                                        @include('frontend.shipping_info', ['address_id' => $address_id ?? 0000000])
-                                        {{-- {{ dd($address_id) }} --}}
-
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Delivery Info -->
-                            <div class="card rounded-0 border shadow-none mb-4">
-                                <div class="card-header py-3" id="headingDeliveryInfo" type="button" data-toggle="collapse" data-target="#collapseDeliveryInfo" aria-expanded="true">
-                                    <div class="d-flex align-items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-                                            <path d="M58,48A10,10,0,1,0,68,58,10,10,0,0,0,58,48ZM56.457,61.543a.663.663,0,0,1-.423.212.693.693,0,0,1-.428-.216l-2.692-2.692.856-.856,2.269,2.269,6-6.043.841.87Z" transform="translate(-48 -48)" fill="#9d9da6"/>
-                                        </svg>
-                                        <span class="ml-2 fs-19 fw-700">{{ translate('Delivery Info') }}</span>
-                                    </div>
-                                    <i class="las la-angle-down fs-18"></i>
-                                </div>
-                                <div id="collapseDeliveryInfo" class="collapse show" aria-labelledby="headingDeliveryInfo">
-                                    <div class="card-body" id="delivery_info">
-                                        @include('frontend.delivery_info', ['carts' => $carts ?? null, 'carrier_list' => $carrier_list ?? null, 'shipping_info' => $shipping_info ?? null])
-                                    </div>
-                                </div>
-                            </div>
+                            
 
                             <!-- Payment Info -->
                             <div class="card rounded-0 border shadow-none mb-0">
