@@ -1054,7 +1054,20 @@ class CheckoutController extends Controller
             }
             $total = $subtotal + $tax + $shipping;
             echo "  : carts  ";
-            dd($carts);
+            echo "<pre>";
+                print_r($carts);
+            echo "</pre>";
+
+            echo "  : shipping_info  ";
+            echo "<pre>";
+                print_r($shipping_info);
+            echo "</pre>";
+            
+            echo "  : total  ";
+            echo "<pre>";
+                print_r($total);
+            echo "</pre>";
+            dd($total);
             // return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
             return view('frontend.checkout', compact('carts', 'shipping_info', 'total'));
         } else {
