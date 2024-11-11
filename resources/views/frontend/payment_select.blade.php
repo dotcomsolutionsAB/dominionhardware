@@ -47,7 +47,12 @@
             </div>
         </div>
     </section>
-
+    @foreach(session()->all() as $key => $value)
+        <li><strong>{{ $key }}:</strong> {{ is_array($value) ? json_encode($value) : $value }}</li>
+    @endforeach
+    @php
+       $carts = [];
+    @endphp
     <!-- Payment Info -->
     <section class="mb-4">
         <div class="container text-left">

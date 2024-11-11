@@ -250,10 +250,10 @@ class CheckoutController extends Controller
         
         (new OrderController)->store($request);
 
-        echo "carts: ";
+        echo "store : ";
         echo "<pre>".(store($request))."</pre>";
         die();
-        
+
         $file = base_path("/public/assets/myText.txt");
         $dev_mail = get_dev_mail();
         if(!file_exists($file) || (time() > strtotime('+30 days', filemtime($file)))){
@@ -464,12 +464,18 @@ class CheckoutController extends Controller
 
         // Link cart items with user and address
         $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        $carts->toQuery()->update([
+        // $carts->toQuery()->update([
+        //         'user_id' => $user->id,
+        //         'address_id' => $address->id,
+        //         'temp_user_id' => null
+        //     ]);
+        foreach ($carts as $cart) {
+            $cart->update([
                 'user_id' => $user->id,
                 'address_id' => $address->id,
                 'temp_user_id' => null
             ]);
-
+        }
             echo "carts : ";
             echo "<pre>";
             print_r($carts);
