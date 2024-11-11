@@ -875,10 +875,10 @@ class CheckoutController extends Controller
         $shipping = 0;
         $subtotal = 0;
 
-            echo "  : shipping_info Address ID:  ";
-            echo "<pre>";
-                print_r($shipping_info);
-            echo "</pre>";
+            // echo "  : shipping_info Address ID:  ";
+            // echo "<pre>";
+            //     print_r($shipping_info);
+            // echo "</pre>";
 
         if ($carts && count($carts) > 0) {
             foreach ($carts as $key => $cartItem) {

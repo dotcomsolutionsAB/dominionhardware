@@ -56,10 +56,10 @@
 $sessionData = session()->all();
 
 // Output all session data
-echo "Session Data:";
-echo "<pre>";
-print_r($sessionData); // Display session data in a readable format
-echo "</pre>";
+// echo "Session Data:";
+// echo "<pre>";
+// print_r($sessionData); // Display session data in a readable format
+// echo "</pre>";
 
     @endphp
     <!-- Payment Info -->
