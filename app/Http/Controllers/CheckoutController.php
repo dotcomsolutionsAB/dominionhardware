@@ -923,7 +923,7 @@ class CheckoutController extends Controller
             // echo "</pre>";
             // dd($shipping_info);
             // return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
-            return view('frontend.checkout', compact('carts', 'shipping_info', 'total'));
+            return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
         } else {
             flash(translate('Your Cart was empty'))->warning();
             return redirect()->route('home');
