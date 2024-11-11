@@ -182,7 +182,7 @@ class CheckoutController extends Controller
         // $address_id = null; // Initialize $address_id to ensure it's always defined
         $session_data = session()->all(); // Retrieve session data for debugging
         $allParameters = $request->all();
-        
+        $guest_shipping_info=[];
         // echo "allParameters : ";
         // echo "<pre>";
         // print_r($allParameters);
