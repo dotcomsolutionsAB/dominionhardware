@@ -801,12 +801,7 @@ class CheckoutController extends Controller
             $temp_user_id = $request->session()->get('temp_user_id');
             $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
-            echo "  : get_shipping_info Temp ID:  ";
-            echo $temp_user_id;
-            echo "<pre>";
-                print_r($carts);
-            echo "</pre>";
-            die();
+            
         if ($carts && count($carts) > 0) {
             $categories = Category::all();
             return view('frontend.shipping_info', compact('categories', 'carts'));
