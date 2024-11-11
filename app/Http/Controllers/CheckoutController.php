@@ -1026,6 +1026,11 @@ class CheckoutController extends Controller
         $shipping = 0;
         $subtotal = 0;
 
+            echo "  : shipping_info Address ID:  ";
+            echo "<pre>";
+                print_r($shipping_info);
+            echo "</pre>";
+
         if ($carts && count($carts) > 0) {
             foreach ($carts as $key => $cartItem) {
                 $product = Product::find($cartItem['product_id']);
@@ -1053,20 +1058,20 @@ class CheckoutController extends Controller
                 $cartItem->save();
             }
             $total = $subtotal + $tax + $shipping;
-            // echo "  : carts  ";
-            // echo "<pre>";
-            //     print_r($carts);
-            // echo "</pre>";
+            echo "  : carts  ";
+            echo "<pre>";
+                print_r($carts);
+            echo "</pre>";
 
             // echo "  : shipping_info  ";
             // echo "<pre>";
             //     print_r($shipping_info);
             // echo "</pre>";
             
-            // echo "  : total  ";
-            // echo "<pre>";
-            //     print_r($total);
-            // echo "</pre>";
+            echo "  : total  ";
+            echo "<pre>";
+                print_r($total);
+            echo "</pre>";
             dd($shipping_info);
             // return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
             return view('frontend.checkout', compact('carts', 'shipping_info', 'total'));
