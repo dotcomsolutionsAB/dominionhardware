@@ -176,6 +176,8 @@ class CheckoutController extends Controller
    // check the selected payment gateway and redirect to that controller accordingly
     public function checkout(Request $request)
     {
+        echo "  :  ";
+        die($request->all());
         // Retrieve all parameters from the request
         $message = ''; // Initialize the message
         $combined_order_id = null; // Initialize for use later
