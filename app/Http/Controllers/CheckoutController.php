@@ -981,10 +981,13 @@ class CheckoutController extends Controller
         }
             echo "  : store_shipping_info Temp ID:  ";
             echo $temp_user_id;
+
+            echo "  : carts data:  ";
             echo "<pre>";
                 print_r($carts);
             echo "</pre>";
 
+            echo "  : deliveryInfo datas:  ";
             echo "<pre>";
                 print_r($deliveryInfo);
             echo "</pre>";
