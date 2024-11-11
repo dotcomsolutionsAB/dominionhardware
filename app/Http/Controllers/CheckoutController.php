@@ -360,6 +360,7 @@ class CheckoutController extends Controller
             'country_id' => 'required|Integer',
             'state_id' => 'required|Integer',
             'city_id' => 'required|Integer',
+            'postal_code' => 'required|max:10',
             'gstin' => 'max:255',
         ]);
 
@@ -445,10 +446,16 @@ class CheckoutController extends Controller
         echo "<pre>";
         print_r($address);
         echo "</pre>";
+        if (!$address->save()) {
+            \Log::error('Failed to save address.');
+            return 'Address creation failed';
+        }
 
+        // Link cart items with user and address
         $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
         $carts->toQuery()->update([
                 'user_id' => $user->id,
+                'address_id' => $address->id,
                 'temp_user_id' => null
             ]);
 
@@ -457,9 +464,9 @@ class CheckoutController extends Controller
             print_r($carts);
             echo "</pre>";
        
-        $carts->toQuery()->active()->update([
-                'address_id' => $address->id
-            ]);
+        // $carts->toQuery()->active()->update([
+        //         'address_id' => $address->id
+        //     ]);
         
         echo "address_id : ";
         echo $address->id;
@@ -470,9 +477,10 @@ class CheckoutController extends Controller
         Session::forget('temp_user_id');
         Session::forget('guest_shipping_info');
 
-        return $success;
-        echo "success : ";
-        die($success);
+        // return $success;
+        return ['user' => $user, 'address' => $address, $success];
+        // echo "success : ";
+        // die($success);
     }
 
     // test
