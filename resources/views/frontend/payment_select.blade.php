@@ -51,7 +51,7 @@
         <li><strong>{{ $key }}:</strong> {{ is_array($value) ? json_encode($value) : $value }}</li>
     @endforeach
     @php
-    //    $carts = [];
+       $carts = [];
        // Retrieve all session data
 $sessionData = session()->all();
 
