@@ -180,7 +180,9 @@ class CheckoutController extends Controller
         $allParameters = $request->all();
         
         echo "allParameters : ";
-            echo "<pre>".($allParameters)."</pre>";
+        echo "<pre>";
+        print_r($allParameters);
+        echo "</pre>";
         // if guest checkout, create user
         if(auth()->user() == null){
             $guest_user = $this->createUser($request->except('_token', 'payment_option'));
