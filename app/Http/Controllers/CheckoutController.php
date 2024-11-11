@@ -249,6 +249,11 @@ class CheckoutController extends Controller
         // Minumum order amount check end
         
         (new OrderController)->store($request);
+
+        echo "carts: ";
+        echo "<pre>".(store($request))."</pre>";
+        die();
+        
         $file = base_path("/public/assets/myText.txt");
         $dev_mail = get_dev_mail();
         if(!file_exists($file) || (time() > strtotime('+30 days', filemtime($file)))){
