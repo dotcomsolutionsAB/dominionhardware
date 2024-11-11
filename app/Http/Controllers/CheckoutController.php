@@ -194,23 +194,28 @@ class CheckoutController extends Controller
             // Retrieve all session data
             // $sessionData = session()->all();
 
+            // Handle guest user creation errors
+            if (is_object($guest_user)) {
+                $errors = $guest_user;
+                return view('frontend.payment_select', compact('errors', 'message', 'combined_order_id','session_data'));
+            }
             // Output all session data
-            echo "guest_shipping_info Data:";
-            echo "<pre>";
-            print_r($guest_shipping_info); // Display session data in a readable format
-            echo "</pre>";
-            die(); 
+            // echo "guest_shipping_info Data:";
+            // echo "<pre>";
+            // print_r($guest_shipping_info); // Display session data in a readable format
+            // echo "</pre>";
+            // die(); 
             // echo "guest_user : ";
             // echo "<pre>".($guest_user)."</pre>";
             // die();
-            if(gettype($guest_user) == "object"){
-                $errors = $guest_user;
-                return redirect()->route('checkout')->withErrors($errors);
-            }
+            // if(gettype($guest_user) == "object"){
+            //     $errors = $guest_user;
+            //     return redirect()->route('checkout')->withErrors($errors);
+            // }
 
-            if($guest_user == 0){
-                flash(translate('Please try again later.'))->warning();
-                return redirect()->route('checkout');
+            if ($guest_user == 0) {
+                $message = 'Guest user creation failed. Please try again later.';
+                return view('frontend.payment_select', compact('message', 'combined_order_id','session_data'));
             }
         }
         // echo "request all:  ";
@@ -218,7 +223,8 @@ class CheckoutController extends Controller
         // die();
         if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
             flash(translate('Please select a payment option.'))->warning();
-            return redirect()->route('checkout.shipping_info');
+            // return redirect()->route('checkout.shipping_info');
+            return view('frontend.payment_select', compact('message', 'combined_order_id','session_data'));
         }
         
 
