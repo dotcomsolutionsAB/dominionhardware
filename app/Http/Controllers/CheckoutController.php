@@ -979,7 +979,16 @@ class CheckoutController extends Controller
             })->orWhere('free_shipping', 1);
             $carrier_list = $carrier_query->get();
         }
+            echo "  : store_shipping_info Temp ID:  ";
+            echo $temp_user_id;
+            echo "<pre>";
+                print_r($carts);
+            echo "</pre>";
 
+            echo "<pre>";
+                print_r($deliveryInfo);
+            echo "</pre>";
+            die();
         return view('frontend.delivery_info', compact('carts', 'carrier_list','deliveryInfo'));
     }
 
