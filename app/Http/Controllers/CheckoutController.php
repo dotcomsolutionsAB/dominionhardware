@@ -177,8 +177,8 @@ class CheckoutController extends Controller
     public function checkout(Request $request)
     {
         // Retrieve all parameters from the request
-        // $allParameters = $request->all();
-        dd($request->toArray());
+        $allParameters = $request->all();
+        
 
         // if guest checkout, create user
         if(auth()->user() == null){
@@ -193,7 +193,9 @@ class CheckoutController extends Controller
                 return redirect()->route('checkout');
             }
         }
-        dd($request->toArray());
+        echo "request all:  ";
+        echo "<pre>".($request->toArray())."</pre>";
+        
         if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
             flash(translate('Please select a payment option.'))->warning();
             return redirect()->route('checkout.shipping_info');
@@ -203,6 +205,8 @@ class CheckoutController extends Controller
         $user = auth()->user();
         $carts = Cart::where('user_id', $user->id)->active()->get();
         // $carts = Cart::where('user_id', Auth::user()->id)->get();
+        echo "carts: ";
+        echo "<pre>".($carts)."</pre>";
         
         // Minumum order amount check
         if(get_setting('minimum_order_amount_check') == 1){
@@ -260,6 +264,10 @@ class CheckoutController extends Controller
                     $order->manual_payment_data = json_encode($manual_payment_data);
                     $order->save();
                 }
+                echo "order";
+                echo "<pre>";
+                dd($order);
+                echo "</pre>";
                 Log::info('Combined Order ID at order_confirmed:', ['combined_order_id' => session('combined_order_id')]);
 
                 flash(translate('Your order has been placed successfully. Please submit payment information from purchase history'))->success();
