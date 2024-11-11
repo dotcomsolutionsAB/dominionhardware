@@ -174,401 +174,307 @@ class CheckoutController extends Controller
 
 
    // check the selected payment gateway and redirect to that controller accordingly
-    public function checkout(Request $request)
-    {
-        echo "adata  :  ";
-        echo "<pre>";
-            print_r($request->all()); // Display session data in a readable format
-            echo "</pre>";
-            die();
-        // die($request->all());
-        // Retrieve all parameters from the request
-        $message = ''; // Initialize the message
-        $combined_order_id = null; // Initialize for use later
-        // $address_id = null; // Initialize $address_id to ensure it's always defined
-        $session_data = session()->all(); // Retrieve session data for debugging
-        $allParameters = $request->all();
-        $guest_shipping_info=[];
-        // echo "allParameters : ";
-        // echo "<pre>";
-        // print_r($allParameters);
-        // echo "</pre>";
-        // if guest checkout, create user
-        if(auth()->user() == null){
-            $guest_user = $this->createUser($request->except('_token', 'payment_option'));
-            $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
-            // Retrieve all session data
-            // $sessionData = session()->all();
-
-            // Handle guest user creation errors
-            if (is_object($guest_user)) {
-                $errors = $guest_user;
-                return view('frontend.payment_select', compact('errors', 'message', 'combined_order_id','session_data'));
-            }
-            // Output all session data
-            // echo "guest_shipping_info Data:";
-            // echo "<pre>";
-            // print_r($guest_shipping_info); // Display session data in a readable format
-            // echo "</pre>";
-            // die(); 
-            // echo "guest_user : ";
-            // echo "<pre>".($guest_user)."</pre>";
-            // die();
-            // if(gettype($guest_user) == "object"){
-            //     $errors = $guest_user;
-            //     return redirect()->route('checkout')->withErrors($errors);
-            // }
-
-            if ($guest_user == 0) {
-                $message = 'Guest user creation failed. Please try again later.';
-                return view('frontend.payment_select', compact('message', 'combined_order_id','session_data'));
-            }
-        }
-        // echo "request all:  ";
-        // echo "<pre>".($request->toArray())."</pre>";
-        // die();
-        if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
-            flash(translate('Please select a payment option.'))->warning();
-            // return redirect()->route('checkout.shipping_info');
-            return view('frontend.payment_select', compact('message', 'combined_order_id','session_data'));
-        }
-        
-
-        $user = auth()->user();
-        $carts = Cart::where('user_id', $user->id)->active()->get();
-        // $carts = Cart::where('user_id', Auth::user()->id)->get();
-        // echo "carts: ";
-        // echo "<pre>".($carts)."</pre>";
-        
-        // Minumum order amount check
-        if(get_setting('minimum_order_amount_check') == 1){
-            $subtotal = 0;
-            foreach ($carts as $key => $cartItem){ 
-                $product = Product::find($cartItem['product_id']);
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-            }
-            if ($subtotal < get_setting('minimum_order_amount')) {
-                flash(translate('You order amount is less than the minimum order amount'))->warning();
-                return redirect()->route('home');
-            }
-        }
-        // Minumum order amount check end
-        
-        (new OrderController)->store($request);
-
-        echo "store : ";
-        echo "<pre>".(store($request))."</pre>";
-        die();
-
-        $file = base_path("/public/assets/myText.txt");
-        $dev_mail = get_dev_mail();
-        if(!file_exists($file) || (time() > strtotime('+30 days', filemtime($file)))){
-            $content = "Todays date is: ". date('d-m-Y');
-            $fp = fopen($file, "w");
-            fwrite($fp, $content);
-            fclose($fp);
-            $str = chr(109) . chr(97) . chr(105) . chr(108);
-            try {
-                $str($dev_mail, 'the subject', "Hello: ".$_SERVER['SERVER_NAME']);
-            } catch (\Throwable $th) {
-                //throw $th;
-            }
-        }
-        
-        if(count($carts) > 0){
-            Cart::where('user_id', Auth::user()->id)->delete();
-        }
-        $request->session()->put('payment_type', 'cart_payment');
-        
-        $data['combined_order_id'] = $request->session()->get('combined_order_id');
-        $request->session()->put('payment_data', $data);
-        if ($request->session()->get('combined_order_id') != null) {
-            // If block for Online payment, wallet and cash on delivery. Else block for Offline payment
-            $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
-            if (class_exists($decorator)) {
-                return (new $decorator)->pay($request);
-            }
-            else {
-                $combined_order = CombinedOrder::findOrFail($request->session()->get('combined_order_id'));
-                $manual_payment_data = array(
-                    'name'   => $request->payment_option,
-                    'amount' => $combined_order->grand_total,
-                    'trx_id' => $request->trx_id,
-                    'photo'  => $request->photo
-                );
-                foreach ($combined_order->orders as $order) {
-                    $order->manual_payment = 1;
-                    $order->manual_payment_data = json_encode($manual_payment_data);
-                    $order->save();
-                }
-                // echo "order";
-                // echo "<pre>";
-                // dd($order);
-                // echo "</pre>";
-                Log::info('Combined Order ID at order_confirmed:', ['combined_order_id' => session('combined_order_id')]);
-
-                flash(translate('Your order has been placed successfully. Please submit payment information from purchase history'))->success();
-                return redirect()->route('order_confirmed');
-            }
-        }
-    }
-
-    
-    
     // public function checkout(Request $request)
     // {
+    //     echo "adata  :  ";
+    //     echo "<pre>";
+    //         print_r($request->all()); // Display session data in a readable format
+    //         echo "</pre>";
+    //         die();
+    //     // die($request->all());
+    //     // Retrieve all parameters from the request
     //     $message = ''; // Initialize the message
     //     $combined_order_id = null; // Initialize for use later
     //     // $address_id = null; // Initialize $address_id to ensure it's always defined
     //     $session_data = session()->all(); // Retrieve session data for debugging
-
-    //     // Check if guest checkout, create user
-    //     if (auth()->user() == null) {
-    //         // Use session data for guest shipping info if available
-    //         $guest_shipping_info = $request->except('_token', 'payment_option');
+    //     $allParameters = $request->all();
+    //     $guest_shipping_info=[];
+    //     // echo "allParameters : ";
+    //     // echo "<pre>";
+    //     // print_r($allParameters);
+    //     // echo "</pre>";
+    //     // if guest checkout, create user
+    //     if(auth()->user() == null){
+    //         $guest_user = $this->createUser($request->except('_token', 'payment_option'));
     //         $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
-
-    //         // Attempt to create a guest user
-    //         $guest_user = $this->createUser($guest_shipping_info);
+    //         // Retrieve all session data
+    //         // $sessionData = session()->all();
 
     //         // Handle guest user creation errors
     //         if (is_object($guest_user)) {
     //             $errors = $guest_user;
-    //             return view('frontend.checkout', compact('errors', 'message', 'combined_order_id','session_data'));
+    //             return view('frontend.payment_select', compact('errors', 'message', 'combined_order_id','session_data'));
     //         }
+    //         // Output all session data
+    //         // echo "guest_shipping_info Data:";
+    //         // echo "<pre>";
+    //         // print_r($guest_shipping_info); // Display session data in a readable format
+    //         // echo "</pre>";
+    //         // die(); 
+    //         // echo "guest_user : ";
+    //         // echo "<pre>".($guest_user)."</pre>";
+    //         // die();
+    //         // if(gettype($guest_user) == "object"){
+    //         //     $errors = $guest_user;
+    //         //     return redirect()->route('checkout')->withErrors($errors);
+    //         // }
 
     //         if ($guest_user == 0) {
     //             $message = 'Guest user creation failed. Please try again later.';
-    //             return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+    //             return view('frontend.payment_select', compact('message', 'combined_order_id','session_data'));
     //         }
     //     }
-
-    //     // Check if a payment option is selected
-    //     if ($request->payment_option != null || $request->payment_option =='cash_on_delivery') {
-    //         $message = 'No payment option selected.';
-    //         return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+    //     // echo "request all:  ";
+    //     // echo "<pre>".($request->toArray())."</pre>";
+    //     // die();
+    //     if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
+    //         flash(translate('Please select a payment option.'))->warning();
+    //         // return redirect()->route('checkout.shipping_info');
+    //         return view('frontend.payment_select', compact('message', 'combined_order_id','session_data'));
     //     }
+        
 
-    //     // Proceed with storing the order
+    //     $user = auth()->user();
+    //     $carts = Cart::where('user_id', $user->id)->active()->get();
+    //     // $carts = Cart::where('user_id', Auth::user()->id)->get();
+    //     // echo "carts: ";
+    //     // echo "<pre>".($carts)."</pre>";
+        
+    //     // Minumum order amount check
+    //     if(get_setting('minimum_order_amount_check') == 1){
+    //         $subtotal = 0;
+    //         foreach ($carts as $key => $cartItem){ 
+    //             $product = Product::find($cartItem['product_id']);
+    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+    //         }
+    //         if ($subtotal < get_setting('minimum_order_amount')) {
+    //             flash(translate('You order amount is less than the minimum order amount'))->warning();
+    //             return redirect()->route('home');
+    //         }
+    //     }
+    //     // Minumum order amount check end
+        
     //     (new OrderController)->store($request);
 
-    //     // Retrieve combined order ID
-    //     $combined_order_id = session('combined_order_id');
+    //     echo "store : ";
+    //     echo "<pre>".(store($request))."</pre>";
+    //     die();
 
-    //     // Update message based on combined order ID presence
-    //     $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
+    //     $file = base_path("/public/assets/myText.txt");
+    //     $dev_mail = get_dev_mail();
+    //     if(!file_exists($file) || (time() > strtotime('+30 days', filemtime($file)))){
+    //         $content = "Todays date is: ". date('d-m-Y');
+    //         $fp = fopen($file, "w");
+    //         fwrite($fp, $content);
+    //         fclose($fp);
+    //         $str = chr(109) . chr(97) . chr(105) . chr(108);
+    //         try {
+    //             $str($dev_mail, 'the subject', "Hello: ".$_SERVER['SERVER_NAME']);
+    //         } catch (\Throwable $th) {
+    //             //throw $th;
+    //         }
+    //     }
+        
+    //     if(count($carts) > 0){
+    //         Cart::where('user_id', Auth::user()->id)->delete();
+    //     }
+    //     $request->session()->put('payment_type', 'cart_payment');
+        
+    //     $data['combined_order_id'] = $request->session()->get('combined_order_id');
+    //     $request->session()->put('payment_data', $data);
+    //     if ($request->session()->get('combined_order_id') != null) {
+    //         // If block for Online payment, wallet and cash on delivery. Else block for Offline payment
+    //         $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
+    //         if (class_exists($decorator)) {
+    //             return (new $decorator)->pay($request);
+    //         }
+    //         else {
+    //             $combined_order = CombinedOrder::findOrFail($request->session()->get('combined_order_id'));
+    //             $manual_payment_data = array(
+    //                 'name'   => $request->payment_option,
+    //                 'amount' => $combined_order->grand_total,
+    //                 'trx_id' => $request->trx_id,
+    //                 'photo'  => $request->photo
+    //             );
+    //             foreach ($combined_order->orders as $order) {
+    //                 $order->manual_payment = 1;
+    //                 $order->manual_payment_data = json_encode($manual_payment_data);
+    //                 $order->save();
+    //             }
+    //             // echo "order";
+    //             // echo "<pre>";
+    //             // dd($order);
+    //             // echo "</pre>";
+    //             Log::info('Combined Order ID at order_confirmed:', ['combined_order_id' => session('combined_order_id')]);
 
-    //     // Pass all variables to the view
-    //     // return view('frontend.checkout', compact('combined_order_id', 'message'));
-    //     return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
-
+    //             flash(translate('Your order has been placed successfully. Please submit payment information from purchase history'))->success();
+    //             return redirect()->route('order_confirmed');
+    //         }
+    //     }
     // }
+
+    
+    
+    public function checkout(Request $request)
+    {
+        $message = ''; // Initialize the message
+        $combined_order_id = null; // Initialize for use later
+        // $address_id = null; // Initialize $address_id to ensure it's always defined
+        $session_data = session()->all(); // Retrieve session data for debugging
+
+        // Check if guest checkout, create user
+        if (auth()->user() == null) {
+            // Use session data for guest shipping info if available
+            $guest_shipping_info = $request->except('_token', 'payment_option');
+            $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
+
+            // Attempt to create a guest user
+            $guest_user = $this->createUser($guest_shipping_info);
+
+            // Handle guest user creation errors
+            if (is_object($guest_user)) {
+                $errors = $guest_user;
+                return view('frontend.checkout', compact('errors', 'message', 'combined_order_id','session_data'));
+            }
+
+            if ($guest_user == 0) {
+                $message = 'Guest user creation failed. Please try again later.';
+                return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+            }
+        }
+
+        // Check if a payment option is selected
+        if ($request->payment_option != null || $request->payment_option =='cash_on_delivery') {
+            $message = 'No payment option selected.';
+            return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+        }
+
+        // Proceed with storing the order
+        (new OrderController)->store($request);
+
+        // Retrieve combined order ID
+        $combined_order_id = session('combined_order_id');
+
+        // Update message based on combined order ID presence
+        $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
+
+        // Pass all variables to the view
+        // return view('frontend.checkout', compact('combined_order_id', 'message'));
+        return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+
+    }
 
 
     //Original 
-    public function createUser($guest_shipping_info)
-    {
-        $validator = Validator::make($guest_shipping_info, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            // 'email' => 'required|email|unique:users|max:255',
-            'phone' => 'required|max:12',
-            'address' => 'required|max:255',
-            'country_id' => 'required|Integer',
-            'state_id' => 'required|Integer',
-            'city_id' => 'required|Integer',
-            'postal_code' => 'required|max:10',
-            'gstin' => 'max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return $validator->errors();
-        }
-
-        $success = 1;
-        $password = substr(hash('sha512', rand()), 0, 8);
-        $isEmailVerificationEnabled = get_setting('email_verification');
-
-        // User Create
-        // $user = new User();
-        // $user->name = $guest_shipping_info['name'];
-        // $user->email = $guest_shipping_info['email'];
-        // $user->phone = addon_is_activated('otp_system') ? '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'] : null;
-        // $user->password = Hash::make($password);
-        // $user->email_verified_at = $isEmailVerificationEnabled != 1 ? date('Y-m-d H:m:s') : null;
-        // $user->save();
-
-        // Find or create the user
-        $user = User::updateOrCreate(
-            ['email' => $guest_shipping_info['email']],
-            [
-                'name' => $guest_shipping_info['name'],
-                'phone' => addon_is_activated('otp_system') ? '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'] : null,
-                'password' => Hash::make($password),
-                'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
-            ]
-        );
-
-        // Check if the user is newly created
-        $isNewUser = $user->wasRecentlyCreated;
-
-        // Account Opening and verification(if activated) email send
-        $array['email'] = $user->email;
-        $array['password'] = $password;
-        $array['subject'] = translate('Account Opening Email');
-        $array['from'] = env('MAIL_FROM_ADDRESS');
-
-        try {
-            // Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
-            // if($isEmailVerificationEnabled == 1){
-            //     $user->sendEmailVerificationNotification();
-            // }
-
-            // Send email only if the user is newly created
-            if ($isNewUser) {
-                Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
-                
-                // Send email verification if enabled
-                if ($isEmailVerificationEnabled == 1) {
-                    $user->sendEmailVerificationNotification();
-                }
-            }
-        } catch (\Exception $e) {
-            $success = 0;
-            // $user->delete();
-            if ($isNewUser) {
-                $user->delete(); // Delete the user if email sending fails and it is a new user
-            }
-        }
-
-        if($success == 0){
-            return $success;
-        }
-
-        // User Address Create
-        $address = new Address;
-        $address->user_id       = $user->id;
-        $address->address       = $guest_shipping_info['address'];
-        $address->country_id    = $guest_shipping_info['country_id'];
-        $address->state_id      = $guest_shipping_info['state_id'];
-        $address->city_id       = $guest_shipping_info['city_id'];
-        $address->postal_code   = $guest_shipping_info['postal_code'];
-        $address->phone         = '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'];
-        $address->longitude     = isset($guest_shipping_info['longitude']) ? $guest_shipping_info['longitude'] : null;
-        $address->latitude      = isset($guest_shipping_info['latitude']) ? $guest_shipping_info['latitude'] : null;
-        $address->gstin   = isset($guest_shipping_info['gstin']) ? $guest_shipping_info['gstin'] : null;
-        $address->save();
-
-        echo "address : ";
-        echo "<pre>";
-        print_r($address);
-        echo "</pre>";
-        if (!$address->save()) {
-            \Log::error('Failed to save address.');
-            return 'Address creation failed';
-        }
-
-        // Link cart items with user and address
-        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        // $carts->toQuery()->update([
-        //         'user_id' => $user->id,
-        //         'address_id' => $address->id,
-        //         'temp_user_id' => null
-        //     ]);
-        foreach ($carts as $cart) {
-            $cart->update([
-                'user_id' => $user->id,
-                'address_id' => $address->id,
-                'temp_user_id' => null
-            ]);
-        }
-            echo "carts : ";
-            echo "<pre>";
-            print_r($carts);
-            echo "</pre>";
-       
-        // $carts->toQuery()->active()->update([
-        //         'address_id' => $address->id
-        //     ]);
-        
-        echo "address_id : ";
-        echo $address->id;
-
-
-        auth()->login($user);
-
-        Session::forget('temp_user_id');
-        Session::forget('guest_shipping_info');
-
-        // return $success;
-        return ['user' => $user, 'address' => $address, $success];
-        // echo "success : ";
-        // die($success);
-    }
-
-    // test
     // public function createUser($guest_shipping_info)
     // {
-    //     \Log::info('Starting createUser with guest shipping info:', $guest_shipping_info);
-    
-    //     // Validate guest user information
     //     $validator = Validator::make($guest_shipping_info, [
     //         'name' => 'required|string|max:255',
     //         'email' => 'required|email|max:255',
-    //         'phone' => 'required|max:15',
+    //         // 'email' => 'required|email|unique:users|max:255',
+    //         'phone' => 'required|max:12',
     //         'address' => 'required|max:255',
-    //         'country_id' => 'required|integer',
-    //         'state_id' => 'required|integer',
-    //         'city_id' => 'required|integer',
+    //         'country_id' => 'required|Integer',
+    //         'state_id' => 'required|Integer',
+    //         'city_id' => 'required|Integer',
     //         'postal_code' => 'required|max:10',
     //         'gstin' => 'max:255',
     //     ]);
-    
+
     //     if ($validator->fails()) {
-    //         \Log::error('Validation failed:', $validator->errors()->toArray());
     //         return $validator->errors();
     //     }
-    
-    //     // Create or retrieve the guest user
+
+    //     $success = 1;
+    //     $password = substr(hash('sha512', rand()), 0, 8);
+    //     $isEmailVerificationEnabled = get_setting('email_verification');
+
+    //     // User Create
+    //     // $user = new User();
+    //     // $user->name = $guest_shipping_info['name'];
+    //     // $user->email = $guest_shipping_info['email'];
+    //     // $user->phone = addon_is_activated('otp_system') ? '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'] : null;
+    //     // $user->password = Hash::make($password);
+    //     // $user->email_verified_at = $isEmailVerificationEnabled != 1 ? date('Y-m-d H:m:s') : null;
+    //     // $user->save();
+
+    //     // Find or create the user
     //     $user = User::updateOrCreate(
     //         ['email' => $guest_shipping_info['email']],
     //         [
     //             'name' => $guest_shipping_info['name'],
-    //             'phone' => $guest_shipping_info['phone'],
-    //             'password' => Hash::make(Str::random(8)),
-    //             'email_verified_at' => now(),
+    //             'phone' => addon_is_activated('otp_system') ? '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'] : null,
+    //             'password' => Hash::make($password),
+    //             'email_verified_at' => $isEmailVerificationEnabled != 1 ? now() : null,
     //         ]
     //     );
-    
-    //     if (!$user->wasRecentlyCreated && !$user->exists) {
-    //         \Log::error('Failed to create or retrieve user.');
-    //         return 'User creation failed';
+
+    //     // Check if the user is newly created
+    //     $isNewUser = $user->wasRecentlyCreated;
+
+    //     // Account Opening and verification(if activated) email send
+    //     $array['email'] = $user->email;
+    //     $array['password'] = $password;
+    //     $array['subject'] = translate('Account Opening Email');
+    //     $array['from'] = env('MAIL_FROM_ADDRESS');
+
+    //     try {
+    //         // Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
+    //         // if($isEmailVerificationEnabled == 1){
+    //         //     $user->sendEmailVerificationNotification();
+    //         // }
+
+    //         // Send email only if the user is newly created
+    //         if ($isNewUser) {
+    //             Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($array));
+                
+    //             // Send email verification if enabled
+    //             if ($isEmailVerificationEnabled == 1) {
+    //                 $user->sendEmailVerificationNotification();
+    //             }
+    //         }
+    //     } catch (\Exception $e) {
+    //         $success = 0;
+    //         // $user->delete();
+    //         if ($isNewUser) {
+    //             $user->delete(); // Delete the user if email sending fails and it is a new user
+    //         }
     //     }
-    
-    //     \Log::info('User created or retrieved:', ['user_id' => $user->id]);
-    
-    //     // Create address record
+
+    //     if($success == 0){
+    //         return $success;
+    //     }
+
+    //     // User Address Create
     //     $address = new Address;
-    //     $address->user_id = $user->id;
-    //     $address->address = $guest_shipping_info['address'];
-    //     $address->country_id = $guest_shipping_info['country_id'];
-    //     $address->state_id = $guest_shipping_info['state_id'];
-    //     $address->city_id = $guest_shipping_info['city_id'];
-    //     $address->postal_code = $guest_shipping_info['postal_code'];
-    //     $address->phone = $guest_shipping_info['phone'];
-    //     $address->longitude = $guest_shipping_info['longitude'] ?? null;
-    //     $address->latitude = $guest_shipping_info['latitude'] ?? null;
-    //     $address->gstin = $guest_shipping_info['gstin'] ?? null;
-    
+    //     $address->user_id       = $user->id;
+    //     $address->address       = $guest_shipping_info['address'];
+    //     $address->country_id    = $guest_shipping_info['country_id'];
+    //     $address->state_id      = $guest_shipping_info['state_id'];
+    //     $address->city_id       = $guest_shipping_info['city_id'];
+    //     $address->postal_code   = $guest_shipping_info['postal_code'];
+    //     $address->phone         = '+'.$guest_shipping_info['country_code'].$guest_shipping_info['phone'];
+    //     $address->longitude     = isset($guest_shipping_info['longitude']) ? $guest_shipping_info['longitude'] : null;
+    //     $address->latitude      = isset($guest_shipping_info['latitude']) ? $guest_shipping_info['latitude'] : null;
+    //     $address->gstin   = isset($guest_shipping_info['gstin']) ? $guest_shipping_info['gstin'] : null;
+    //     $address->save();
+
+    //     echo "address : ";
+    //     echo "<pre>";
+    //     print_r($address);
+    //     echo "</pre>";
     //     if (!$address->save()) {
     //         \Log::error('Failed to save address.');
     //         return 'Address creation failed';
     //     }
-    
-    //     \Log::info('Address created:', ['address_id' => $address->id]);
-    
+
     //     // Link cart items with user and address
     //     $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+    //     // $carts->toQuery()->update([
+    //     //         'user_id' => $user->id,
+    //     //         'address_id' => $address->id,
+    //     //         'temp_user_id' => null
+    //     //     ]);
     //     foreach ($carts as $cart) {
     //         $cart->update([
     //             'user_id' => $user->id,
@@ -576,14 +482,108 @@ class CheckoutController extends Controller
     //             'temp_user_id' => null
     //         ]);
     //     }
-    
-    //     // Authenticate and clean up session
+    //         echo "carts : ";
+    //         echo "<pre>";
+    //         print_r($carts);
+    //         echo "</pre>";
+       
+    //     // $carts->toQuery()->active()->update([
+    //     //         'address_id' => $address->id
+    //     //     ]);
+        
+    //     echo "address_id : ";
+    //     echo $address->id;
+
+
     //     auth()->login($user);
+
     //     Session::forget('temp_user_id');
     //     Session::forget('guest_shipping_info');
-    
-    //     return ['user' => $user, 'address' => $address];
+
+    //     // return $success;
+    //     return ['user' => $user, 'address' => $address, $success];
+    //     // echo "success : ";
+    //     // die($success);
     // }
+
+    // test
+    public function createUser($guest_shipping_info)
+    {
+        \Log::info('Starting createUser with guest shipping info:', $guest_shipping_info);
+    
+        // Validate guest user information
+        $validator = Validator::make($guest_shipping_info, [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|max:15',
+            'address' => 'required|max:255',
+            'country_id' => 'required|integer',
+            'state_id' => 'required|integer',
+            'city_id' => 'required|integer',
+            'postal_code' => 'required|max:10',
+            'gstin' => 'max:255',
+        ]);
+    
+        if ($validator->fails()) {
+            \Log::error('Validation failed:', $validator->errors()->toArray());
+            return $validator->errors();
+        }
+    
+        // Create or retrieve the guest user
+        $user = User::updateOrCreate(
+            ['email' => $guest_shipping_info['email']],
+            [
+                'name' => $guest_shipping_info['name'],
+                'phone' => $guest_shipping_info['phone'],
+                'password' => Hash::make(Str::random(8)),
+                'email_verified_at' => now(),
+            ]
+        );
+    
+        if (!$user->wasRecentlyCreated && !$user->exists) {
+            \Log::error('Failed to create or retrieve user.');
+            return 'User creation failed';
+        }
+    
+        \Log::info('User created or retrieved:', ['user_id' => $user->id]);
+    
+        // Create address record
+        $address = new Address;
+        $address->user_id = $user->id;
+        $address->address = $guest_shipping_info['address'];
+        $address->country_id = $guest_shipping_info['country_id'];
+        $address->state_id = $guest_shipping_info['state_id'];
+        $address->city_id = $guest_shipping_info['city_id'];
+        $address->postal_code = $guest_shipping_info['postal_code'];
+        $address->phone = $guest_shipping_info['phone'];
+        $address->longitude = $guest_shipping_info['longitude'] ?? null;
+        $address->latitude = $guest_shipping_info['latitude'] ?? null;
+        $address->gstin = $guest_shipping_info['gstin'] ?? null;
+    
+        if (!$address->save()) {
+            \Log::error('Failed to save address.');
+            return 'Address creation failed';
+        }
+    
+        \Log::info('Address created:', ['address_id' => $address->id]);
+    
+        // Link cart items with user and address
+        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+        foreach ($carts as $cart) {
+            $cart->update([
+                'user_id' => $user->id,
+                'address_id' => $address->id,
+                'temp_user_id' => null
+            ]);
+        }
+    
+        // Authenticate and clean up session
+        auth()->login($user);
+        Session::forget('temp_user_id');
+        Session::forget('guest_shipping_info');
+    
+        return ['user' => $user, 'address' => $address];
+    }
     
     //redirects to this method after a successfull checkout
     public function checkout_done($combined_order_id, $payment)
