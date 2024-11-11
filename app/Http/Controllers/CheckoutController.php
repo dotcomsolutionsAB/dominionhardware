@@ -177,6 +177,10 @@ class CheckoutController extends Controller
     public function checkout(Request $request)
     {
         // Retrieve all parameters from the request
+        $message = ''; // Initialize the message
+        $combined_order_id = null; // Initialize for use later
+        // $address_id = null; // Initialize $address_id to ensure it's always defined
+        $session_data = session()->all(); // Retrieve session data for debugging
         $allParameters = $request->all();
         
         // echo "allParameters : ";
@@ -186,15 +190,16 @@ class CheckoutController extends Controller
         // if guest checkout, create user
         if(auth()->user() == null){
             $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+            $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
             // Retrieve all session data
-            $sessionData = session()->all();
+            // $sessionData = session()->all();
 
             // Output all session data
-            // echo "Session Data:";
-            // echo "<pre>";
-            // print_r($sessionData); // Display session data in a readable format
-            // echo "</pre>";
-            // die(); 
+            echo "guest_shipping_info Data:";
+            echo "<pre>";
+            print_r($guest_shipping_info); // Display session data in a readable format
+            echo "</pre>";
+            die(); 
             // echo "guest_user : ";
             // echo "<pre>".($guest_user)."</pre>";
             // die();
