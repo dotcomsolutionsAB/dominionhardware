@@ -52,6 +52,15 @@
     @endforeach
     @php
        $carts = [];
+       // Retrieve all session data
+$sessionData = session()->all();
+
+// Output all session data
+echo "Session Data:";
+echo "<pre>";
+print_r($sessionData); // Display session data in a readable format
+echo "</pre>";
+die;
     @endphp
     <!-- Payment Info -->
     <section class="mb-4">
