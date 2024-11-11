@@ -195,7 +195,7 @@ class CheckoutController extends Controller
         }
         echo "request all:  ";
         echo "<pre>".($request->toArray())."</pre>";
-        
+        die();
         if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
             flash(translate('Please select a payment option.'))->warning();
             return redirect()->route('checkout.shipping_info');
