@@ -987,6 +987,11 @@ class CheckoutController extends Controller
                 print_r($carts);
             echo "</pre>";
 
+            echo "  : shipping_info data:  ";
+            echo "<pre>";
+                print_r($shipping_info);
+            echo "</pre>";
+
             echo "  : deliveryInfo datas:  ";
             echo "<pre>";
                 print_r($deliveryInfo);
