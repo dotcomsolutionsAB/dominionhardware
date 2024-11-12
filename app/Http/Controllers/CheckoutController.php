@@ -878,10 +878,8 @@ public function checkout(Request $request)
 {
     \Log::info('Checkout process started.');
 
-    // Check for guest checkout and create user if not logged in
     if (auth()->user() == null) {
         \Log::info('Guest user detected. Attempting to create a guest account.');
-
         $guest_user = $this->createUser($request->except('_token', 'payment_option'));
 
         if (is_object($guest_user)) {
@@ -897,7 +895,6 @@ public function checkout(Request $request)
         }
     }
 
-    // Check if a payment option is selected
     if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
         \Log::warning('Payment option not selected.');
         flash(translate('Please select a payment option.'))->warning();
@@ -907,41 +904,21 @@ public function checkout(Request $request)
     $user = auth()->user();
     $carts = Cart::where('user_id', $user->id)->active()->get();
 
-    // Check if cart is empty
     if ($carts->isEmpty()) {
         \Log::warning('Cart is empty. Redirecting to home.');
         flash(translate('Your cart is empty'))->warning();
         return redirect()->route('home');
     }
 
-    // Minimum order amount check
-    if (get_setting('minimum_order_amount_check') == 1) {
-        $subtotal = 0;
-        foreach ($carts as $cartItem) {
-            $product = Product::find($cartItem['product_id']);
-            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-        }
-
-        if ($subtotal < get_setting('minimum_order_amount')) {
-            \Log::warning('Order amount is less than the minimum required.');
-            flash(translate('Your order amount is less than the minimum order amount'))->warning();
-            return redirect()->route('home');
-        }
-    }
-
-    // Proceed with order creation
     \Log::info('Proceeding to create order.');
     $orderController = new OrderController();
     $orderController->store($request);
 
-    // Check if combined order ID is set in session
-    $combined_order_id = $request->session()->get('combined_order_id');
+    $combined_order_id = session('combined_order_id');
     \Log::info('Session combined_order_id:', ['combined_order_id' => $combined_order_id]);
 
     if ($combined_order_id != null) {
         \Log::info('Combined order ID set: ' . $combined_order_id);
-
-        // Handle payment or manual payment
         $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
         if (class_exists($decorator)) {
             return (new $decorator)->pay($request);
@@ -970,6 +947,7 @@ public function checkout(Request $request)
         return redirect()->route('checkout.shipping_info');
     }
 }
+
 
 public function createUser($guest_shipping_info)
 {
