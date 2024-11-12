@@ -1077,6 +1077,7 @@ class CheckoutController extends Controller
     public function checkout(Request $request)
 {
     \Log::info('Checkout request data:', $request->all());
+    dd($request->all());
     // Ensure a payment option is selected
     if (!$request->payment_option) {
         flash(translate('Please select a payment option.'))->warning();
