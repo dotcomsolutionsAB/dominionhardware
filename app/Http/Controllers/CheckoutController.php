@@ -1288,7 +1288,23 @@ public function store_shipping_info(Request $request)
             $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
     
-            $cartItem['shipping_cost'] = getShippingCost($carts, $key);
+            if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
+                if ($request['shipping_type_' . $product->user_id] == 'pickup_point') {
+                    $cartItem['shipping_type'] = 'pickup_point';
+                    $cartItem['pickup_point'] = $request['pickup_point_id_' . $product->user_id];
+                } else {
+                    $cartItem['shipping_type'] = 'home_delivery';
+                }
+                $cartItem['shipping_cost'] = 0;
+                if ($cartItem['shipping_type'] == 'home_delivery') {
+                    $cartItem['shipping_cost'] = getShippingCost($carts, $key);
+                }
+            } else {
+                $cartItem['shipping_type'] = 'carrier';
+                $cartItem['carrier_id'] = $request['carrier_id_' . $product->user_id];
+                $cartItem['shipping_cost'] = getShippingCost($carts, $key, $cartItem['carrier_id']);
+            }
+            // $cartItem['shipping_cost'] = getShippingCost($carts, $key);
             $shipping += $cartItem['shipping_cost'];
             $cartItem->save();
         }
