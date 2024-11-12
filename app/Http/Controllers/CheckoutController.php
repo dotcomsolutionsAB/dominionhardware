@@ -1272,7 +1272,7 @@ public function store_shipping_info(Request $request)
         $tempUser = session('temp_user_id');
         $carts = $authUser ? Cart::where('user_id', $authUser->id)->get() : Cart::where('temp_user_id', $tempUser)->get();
     
-        dd($carts);
+        // dd($carts);
         if ($carts->isEmpty()) {
             flash(translate('Your cart is empty'))->warning();
             return redirect()->route('home');
