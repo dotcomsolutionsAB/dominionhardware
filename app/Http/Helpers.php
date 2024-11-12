@@ -870,111 +870,6 @@ if (!function_exists('translation_tables')) {
     }
 }
 
-// function getShippingCost($carts, $index, $carrier = '')
-// {
-//     $shipping_type = get_setting('shipping_type');
-//     $admin_products = array();
-//     $seller_products = array();
-//     $admin_product_total_weight = 0;
-//     $admin_product_total_price = 0;
-//     $seller_product_total_weight = array();
-//     $seller_product_total_price = array();
-
-//     $cartItem = $carts[$index];
-//     $product = Product::find($cartItem['product_id']);
-
-//     if ($product->digital == 1) {
-//         return 0;
-//     }
-
-//     foreach ($carts as $key => $cart_item) {
-//         $item_product = Product::find($cart_item['product_id']);
-//         if ($item_product->added_by == 'admin') {
-//             array_push($admin_products, $cart_item['product_id']);
-
-//             // For carrier wise shipping
-//             if ($shipping_type == 'carrier_wise_shipping') {
-//                 $admin_product_total_weight += ($item_product->weight * $cart_item['quantity']);
-//                 $admin_product_total_price += (cart_product_price($cart_item, $item_product, false, false) * $cart_item['quantity']);
-//             }
-//         } else {
-//             $product_ids = array();
-//             $weight = 0;
-//             $price = 0;
-//             if (isset($seller_products[$item_product->user_id])) {
-//                 $product_ids = $seller_products[$item_product->user_id];
-
-//                 // For carrier wise shipping
-//                 if ($shipping_type == 'carrier_wise_shipping') {
-//                     $weight += $seller_product_total_weight[$item_product->user_id];
-//                     $price += $seller_product_total_price[$item_product->user_id];
-//                 }
-//             }
-
-//             array_push($product_ids, $cart_item['product_id']);
-//             $seller_products[$item_product->user_id] = $product_ids;
-
-//             // For carrier wise shipping
-//             if ($shipping_type == 'carrier_wise_shipping') {
-//                 $weight += ($item_product->weight * $cart_item['quantity']);
-//                 $seller_product_total_weight[$item_product->user_id] = $weight;
-
-//                 $price += (cart_product_price($cart_item, $item_product, false, false) * $cart_item['quantity']);
-//                 $seller_product_total_price[$item_product->user_id] = $price;
-//             }
-//         }
-//     }
-
-//     if ($shipping_type == 'flat_rate') {
-//         return get_setting('flat_rate_shipping_cost') / count($carts);
-//     } elseif ($shipping_type == 'seller_wise_shipping') {
-//         if ($product->added_by == 'admin') {
-//             return get_setting('shipping_cost_admin') / count($admin_products);
-//         } else {
-//             return Shop::where('user_id', $product->user_id)->first()->shipping_cost / count($seller_products[$product->user_id]);
-//         }
-//     } elseif ($shipping_type == 'area_wise_shipping') {
-//         $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
-//         $city = City::where('id', $shipping_info->city_id)->first();
-//         if ($city != null) {
-//             if ($product->added_by == 'admin') {
-//                 return $city->cost / count($admin_products);
-//             } else {
-//                 return $city->cost / count($seller_products[$product->user_id]);
-//             }
-//         }
-//         return 0;
-//     } elseif ($shipping_type == 'carrier_wise_shipping') { // carrier wise shipping
-//         $user_zone = Address::where('id', $carts[0]['address_id'])->first()->country->zone_id;
-//         if ($carrier == null || $user_zone == 0) {
-//             return 0;
-//         }
-
-//         $carrier = Carrier::find($carrier);
-//         if ($carrier->carrier_ranges->first()) {
-//             $carrier_billing_type   = $carrier->carrier_ranges->first()->billing_type;
-//             if ($product->added_by == 'admin') {
-//                 $itemsWeightOrPrice = $carrier_billing_type == 'weight_based' ? $admin_product_total_weight : $admin_product_total_price;
-//             } else {
-//                 $itemsWeightOrPrice = $carrier_billing_type == 'weight_based' ? $seller_product_total_weight[$product->user_id] : $seller_product_total_price[$product->user_id];
-//             }
-//         }
-
-//         foreach ($carrier->carrier_ranges as $carrier_range) {
-//             if ($itemsWeightOrPrice >= $carrier_range->delimiter1 && $itemsWeightOrPrice < $carrier_range->delimiter2) {
-//                 $carrier_price = $carrier_range->carrier_range_prices->where('zone_id', $user_zone)->first()->price;
-//                 return $product->added_by == 'admin' ? ($carrier_price / count($admin_products)) : ($carrier_price / count($seller_products[$product->user_id]));
-//             }
-//         }
-//         return 0;
-//     } else {
-//         if ($product->is_quantity_multiplied && ($shipping_type == 'product_wise_shipping')) {
-//             return  $product->shipping_cost * $cartItem['quantity'];
-//         }
-//         return $product->shipping_cost;
-//     }
-// }
-
 function getShippingCost($carts, $index, $carrier = '')
 {
     $shipping_type = get_setting('shipping_type');
@@ -985,34 +880,38 @@ function getShippingCost($carts, $index, $carrier = '')
     $seller_product_total_weight = array();
     $seller_product_total_price = array();
 
-    // Use safe collection access
-    $cartItem = $carts->get($index);
-    if (!$cartItem) {
-        \Log::warning("Invalid cart item at index: $index");
-        return 0;
-    }
-
+    $cartItem = $carts[$index];
     $product = Product::find($cartItem['product_id']);
-    if (!$product || $product->digital == 1) {
+
+    if ($product->digital == 1) {
         return 0;
     }
 
     foreach ($carts as $key => $cart_item) {
         $item_product = Product::find($cart_item['product_id']);
-        if ($item_product && $item_product->added_by == 'admin') {
-            $admin_products[] = $cart_item['product_id'];
+        if ($item_product->added_by == 'admin') {
+            array_push($admin_products, $cart_item['product_id']);
 
             // For carrier wise shipping
             if ($shipping_type == 'carrier_wise_shipping') {
                 $admin_product_total_weight += ($item_product->weight * $cart_item['quantity']);
                 $admin_product_total_price += (cart_product_price($cart_item, $item_product, false, false) * $cart_item['quantity']);
             }
-        } elseif ($item_product) {
-            $product_ids = $seller_products[$item_product->user_id] ?? [];
-            $weight = $seller_product_total_weight[$item_product->user_id] ?? 0;
-            $price = $seller_product_total_price[$item_product->user_id] ?? 0;
+        } else {
+            $product_ids = array();
+            $weight = 0;
+            $price = 0;
+            if (isset($seller_products[$item_product->user_id])) {
+                $product_ids = $seller_products[$item_product->user_id];
 
-            $product_ids[] = $cart_item['product_id'];
+                // For carrier wise shipping
+                if ($shipping_type == 'carrier_wise_shipping') {
+                    $weight += $seller_product_total_weight[$item_product->user_id];
+                    $price += $seller_product_total_price[$item_product->user_id];
+                }
+            }
+
+            array_push($product_ids, $cart_item['product_id']);
             $seller_products[$item_product->user_id] = $product_ids;
 
             // For carrier wise shipping
@@ -1026,50 +925,151 @@ function getShippingCost($carts, $index, $carrier = '')
         }
     }
 
-    // Flat rate, seller-wise, and area-wise shipping calculations
     if ($shipping_type == 'flat_rate') {
-        return get_setting('flat_rate_shipping_cost') / max(count($carts), 1);
+        return get_setting('flat_rate_shipping_cost') / count($carts);
     } elseif ($shipping_type == 'seller_wise_shipping') {
-        return $product->added_by == 'admin' ? get_setting('shipping_cost_admin') / max(count($admin_products), 1)
-            : Shop::where('user_id', $product->user_id)->first()->shipping_cost / max(count($seller_products[$product->user_id]), 1);
+        if ($product->added_by == 'admin') {
+            return get_setting('shipping_cost_admin') / count($admin_products);
+        } else {
+            return Shop::where('user_id', $product->user_id)->first()->shipping_cost / count($seller_products[$product->user_id]);
+        }
     } elseif ($shipping_type == 'area_wise_shipping') {
-        $shipping_info = Address::where('id', $carts->first()['address_id'] ?? null)->first();
-        $city = $shipping_info ? City::where('id', $shipping_info->city_id)->first() : null;
-        if ($city) {
-            return $product->added_by == 'admin' ? $city->cost / max(count($admin_products), 1)
-                : $city->cost / max(count($seller_products[$product->user_id]), 1);
+        $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
+        $city = City::where('id', $shipping_info->city_id)->first();
+        if ($city != null) {
+            if ($product->added_by == 'admin') {
+                return $city->cost / count($admin_products);
+            } else {
+                return $city->cost / count($seller_products[$product->user_id]);
+            }
         }
         return 0;
-    }
-
-    // Carrier-wise shipping calculations
-    if ($shipping_type == 'carrier_wise_shipping') {
-        $user_zone = Address::where('id', $carts->first()['address_id'] ?? null)->first()->country->zone_id ?? 0;
-        if (!$carrier || !$user_zone) {
+    } elseif ($shipping_type == 'carrier_wise_shipping') { // carrier wise shipping
+        $user_zone = Address::where('id', $carts[0]['address_id'])->first()->country->zone_id;
+        if ($carrier == null || $user_zone == 0) {
             return 0;
         }
 
         $carrier = Carrier::find($carrier);
-        if ($carrier && $carrier->carrier_ranges->first()) {
-            $carrier_billing_type = $carrier->carrier_ranges->first()->billing_type;
-            $itemsWeightOrPrice = $product->added_by == 'admin' ?
-                ($carrier_billing_type == 'weight_based' ? $admin_product_total_weight : $admin_product_total_price)
-                : ($carrier_billing_type == 'weight_based' ? $seller_product_total_weight[$product->user_id] : $seller_product_total_price[$product->user_id]);
+        if ($carrier->carrier_ranges->first()) {
+            $carrier_billing_type   = $carrier->carrier_ranges->first()->billing_type;
+            if ($product->added_by == 'admin') {
+                $itemsWeightOrPrice = $carrier_billing_type == 'weight_based' ? $admin_product_total_weight : $admin_product_total_price;
+            } else {
+                $itemsWeightOrPrice = $carrier_billing_type == 'weight_based' ? $seller_product_total_weight[$product->user_id] : $seller_product_total_price[$product->user_id];
+            }
+        }
 
-            foreach ($carrier->carrier_ranges as $carrier_range) {
-                if ($itemsWeightOrPrice >= $carrier_range->delimiter1 && $itemsWeightOrPrice < $carrier_range->delimiter2) {
-                    $carrier_price = $carrier_range->carrier_range_prices->where('zone_id', $user_zone)->first()->price ?? 0;
-                    return $product->added_by == 'admin' ? $carrier_price / max(count($admin_products), 1)
-                        : $carrier_price / max(count($seller_products[$product->user_id]), 1);
-                }
+        foreach ($carrier->carrier_ranges as $carrier_range) {
+            if ($itemsWeightOrPrice >= $carrier_range->delimiter1 && $itemsWeightOrPrice < $carrier_range->delimiter2) {
+                $carrier_price = $carrier_range->carrier_range_prices->where('zone_id', $user_zone)->first()->price;
+                return $product->added_by == 'admin' ? ($carrier_price / count($admin_products)) : ($carrier_price / count($seller_products[$product->user_id]));
             }
         }
         return 0;
+    } else {
+        if ($product->is_quantity_multiplied && ($shipping_type == 'product_wise_shipping')) {
+            return  $product->shipping_cost * $cartItem['quantity'];
+        }
+        return $product->shipping_cost;
     }
-
-    return $product->is_quantity_multiplied && $shipping_type == 'product_wise_shipping'
-        ? $product->shipping_cost * $cartItem['quantity'] : $product->shipping_cost;
 }
+
+// function getShippingCost($carts, $index, $carrier = '')
+// {
+//     $shipping_type = get_setting('shipping_type');
+//     $admin_products = array();
+//     $seller_products = array();
+//     $admin_product_total_weight = 0;
+//     $admin_product_total_price = 0;
+//     $seller_product_total_weight = array();
+//     $seller_product_total_price = array();
+
+//     // Use safe collection access
+//     $cartItem = $carts->get($index);
+//     if (!$cartItem) {
+//         \Log::warning("Invalid cart item at index: $index");
+//         return 0;
+//     }
+
+//     $product = Product::find($cartItem['product_id']);
+//     if (!$product || $product->digital == 1) {
+//         return 0;
+//     }
+
+//     foreach ($carts as $key => $cart_item) {
+//         $item_product = Product::find($cart_item['product_id']);
+//         if ($item_product && $item_product->added_by == 'admin') {
+//             $admin_products[] = $cart_item['product_id'];
+
+//             // For carrier wise shipping
+//             if ($shipping_type == 'carrier_wise_shipping') {
+//                 $admin_product_total_weight += ($item_product->weight * $cart_item['quantity']);
+//                 $admin_product_total_price += (cart_product_price($cart_item, $item_product, false, false) * $cart_item['quantity']);
+//             }
+//         } elseif ($item_product) {
+//             $product_ids = $seller_products[$item_product->user_id] ?? [];
+//             $weight = $seller_product_total_weight[$item_product->user_id] ?? 0;
+//             $price = $seller_product_total_price[$item_product->user_id] ?? 0;
+
+//             $product_ids[] = $cart_item['product_id'];
+//             $seller_products[$item_product->user_id] = $product_ids;
+
+//             // For carrier wise shipping
+//             if ($shipping_type == 'carrier_wise_shipping') {
+//                 $weight += ($item_product->weight * $cart_item['quantity']);
+//                 $seller_product_total_weight[$item_product->user_id] = $weight;
+
+//                 $price += (cart_product_price($cart_item, $item_product, false, false) * $cart_item['quantity']);
+//                 $seller_product_total_price[$item_product->user_id] = $price;
+//             }
+//         }
+//     }
+
+//     // Flat rate, seller-wise, and area-wise shipping calculations
+//     if ($shipping_type == 'flat_rate') {
+//         return get_setting('flat_rate_shipping_cost') / max(count($carts), 1);
+//     } elseif ($shipping_type == 'seller_wise_shipping') {
+//         return $product->added_by == 'admin' ? get_setting('shipping_cost_admin') / max(count($admin_products), 1)
+//             : Shop::where('user_id', $product->user_id)->first()->shipping_cost / max(count($seller_products[$product->user_id]), 1);
+//     } elseif ($shipping_type == 'area_wise_shipping') {
+//         $shipping_info = Address::where('id', $carts->first()['address_id'] ?? null)->first();
+//         $city = $shipping_info ? City::where('id', $shipping_info->city_id)->first() : null;
+//         if ($city) {
+//             return $product->added_by == 'admin' ? $city->cost / max(count($admin_products), 1)
+//                 : $city->cost / max(count($seller_products[$product->user_id]), 1);
+//         }
+//         return 0;
+//     }
+
+//     // Carrier-wise shipping calculations
+//     if ($shipping_type == 'carrier_wise_shipping') {
+//         $user_zone = Address::where('id', $carts->first()['address_id'] ?? null)->first()->country->zone_id ?? 0;
+//         if (!$carrier || !$user_zone) {
+//             return 0;
+//         }
+
+//         $carrier = Carrier::find($carrier);
+//         if ($carrier && $carrier->carrier_ranges->first()) {
+//             $carrier_billing_type = $carrier->carrier_ranges->first()->billing_type;
+//             $itemsWeightOrPrice = $product->added_by == 'admin' ?
+//                 ($carrier_billing_type == 'weight_based' ? $admin_product_total_weight : $admin_product_total_price)
+//                 : ($carrier_billing_type == 'weight_based' ? $seller_product_total_weight[$product->user_id] : $seller_product_total_price[$product->user_id]);
+
+//             foreach ($carrier->carrier_ranges as $carrier_range) {
+//                 if ($itemsWeightOrPrice >= $carrier_range->delimiter1 && $itemsWeightOrPrice < $carrier_range->delimiter2) {
+//                     $carrier_price = $carrier_range->carrier_range_prices->where('zone_id', $user_zone)->first()->price ?? 0;
+//                     return $product->added_by == 'admin' ? $carrier_price / max(count($admin_products), 1)
+//                         : $carrier_price / max(count($seller_products[$product->user_id]), 1);
+//                 }
+//             }
+//         }
+//         return 0;
+//     }
+
+//     return $product->is_quantity_multiplied && $shipping_type == 'product_wise_shipping'
+//         ? $product->shipping_cost * $cartItem['quantity'] : $product->shipping_cost;
+// }
 
 
 //return carrier wise shipping cost against seller

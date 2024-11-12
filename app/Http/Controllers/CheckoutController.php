@@ -883,6 +883,7 @@ public function checkout(Request $request)
         \Log::info('Guest user detected. Attempting to create a guest account.');
 
         $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+
         if (is_object($guest_user)) {
             $errors = $guest_user;
             \Log::error('Error creating guest user:', $errors->toArray());
@@ -930,7 +931,8 @@ public function checkout(Request $request)
 
     // Proceed with order creation
     \Log::info('Proceeding to create order.');
-    (new OrderController)->store($request);
+    $orderController = new OrderController();
+    $orderController->store($request);
 
     // Check if combined order ID is set in session
     $combined_order_id = $request->session()->get('combined_order_id');
@@ -966,6 +968,7 @@ public function checkout(Request $request)
         return redirect()->route('checkout.shipping_info');
     }
 }
+
 
 public function createUser($guest_shipping_info)
 {
