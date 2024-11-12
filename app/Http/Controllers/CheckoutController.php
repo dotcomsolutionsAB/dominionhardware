@@ -1212,47 +1212,21 @@ public function createUser($guest_shipping_info)
                 $user = User::where('email', $request->email)->first();
                 
                 if (!$user) {
-                    // Create a new user if email doesn't exist
+                    // Create a new user if the email doesn't exist
                     $user = User::create([
                         'name' => $request->name,
                         'email' => $request->email,
                         'phone' => $request->phone,
                         'password' => bcrypt('default_password'), // You may want to ask the user to reset this later
                     ]);
+        
                     // Automatically log the user in
                     Auth::login($user);
+                } else {
+                    // If the user already exists, log them in
+                    Auth::login($user);
                 }
-
-                // Add the address in the addresses table
-                try {
-                    $address = Address::create([
-                        'user_id' => $user->id,
-                        // 'company'=>$request->name,
-                        'gstin'=>$request->gstin,
-                        'phone'=>$request->phone,
-                        'address' => $request->address,
-                        'country_id' => $request->country_id,
-                        'state_id' => $request->state_id,
-                        'city_id' => $request->city_id,
-                        'postal_code' => $request->postal_code,
-                    ]);
-
-                                    
-                    echo $address['user_id'];
-                    echo $address['address'];
-
-                    echo "Address created successfully: ";
-                    echo "<pre>";
-                    print_r($address);
-                    echo "</pre>";
-                    // die();
-                } catch (\Exception $e) {
-                    // Catch and display the error message
-                    echo "Error: ";
-                    echo $e->getMessage();
-                    die();
-                }                
-
+        
                 // Update the user_id in the cart table and remove temp_user_id
                 $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
                 foreach ($carts as $cartItem) {
@@ -1261,31 +1235,17 @@ public function createUser($guest_shipping_info)
                     $cartItem->save();
                 }
             }
-
+        
+            // Reload the cart items with the updated user_id
+            $carts = Cart::where('user_id', auth()->id())->get();
+        
             if ($carts->isEmpty()) {
                 flash(translate('Your cart is empty'))->warning();
                 return redirect()->route('home');
             }
-            // echo "carts : ";
-            // echo "<pre>";
-            // print_r($carts);
-            // echo "</pre>";
-
-            // echo "address : ";
-            // echo "<pre>";
-            // print_r($address);
-            // echo "</pre>";
-
-            // echo "user : ";
-            // echo "<pre>";
-            // print_r($user);
-            // echo "</pre>";
-
-            // die;
-
+        
             return view('frontend.delivery_info', compact('carts'));
         }
-
     
     public function store_delivery_info(Request $request)
     {
