@@ -876,6 +876,7 @@ public function index(Request $request)
 
 public function checkout(Request $request)
 {
+    dd(session()->all()); 
     \Log::info('Checkout process started.');
 
     if (auth()->user() == null) {
