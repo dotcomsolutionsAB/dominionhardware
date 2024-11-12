@@ -924,36 +924,86 @@ class CheckoutController extends Controller
         return view('frontend.delivery_info', compact('carts'));
     }
     
+    // public function store_delivery_info(Request $request)
+    // {
+    //     $authUser = auth()->user();
+    //     $tempUser = session('temp_user_id');
+    //     $carts = $authUser ? Cart::where('user_id', $authUser->id)->get() : Cart::where('temp_user_id', $tempUser)->get();
+    
+    //     if ($carts->isEmpty()) {
+    //         flash(translate('Your cart is empty'))->warning();
+    //         return redirect()->route('home');
+    //     }
+    
+    //     $total = 0;
+    //     $tax = 0;
+    //     $shipping = 0;
+    //     $subtotal = 0;
+    
+    //     foreach ($carts as $key => $cartItem) {
+    //         $product = Product::find($cartItem['product_id']);
+    //         $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+    //         $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+    
+    //         $cartItem['shipping_cost'] = getShippingCost($carts, $key);
+    //         $shipping += $cartItem['shipping_cost'];
+    //         $cartItem->save();
+    //     }
+    
+    //     $total = $subtotal + $tax + $shipping;
+    
+    //     return view('frontend.payment_select', compact('carts', 'total'));
+    // }
     public function store_delivery_info(Request $request)
-    {
-        $authUser = auth()->user();
-        $tempUser = session('temp_user_id');
-        $carts = $authUser ? Cart::where('user_id', $authUser->id)->get() : Cart::where('temp_user_id', $tempUser)->get();
+{
+    $authUser = auth()->user();
+    $tempUser = $request->session()->has('temp_user_id') ? $request->session()->get('temp_user_id') : null;
     
-        if ($carts->isEmpty()) {
-            flash(translate('Your cart is empty'))->warning();
-            return redirect()->route('home');
-        }
-    
-        $total = 0;
-        $tax = 0;
-        $shipping = 0;
-        $subtotal = 0;
-    
+    $carts = $authUser ? 
+        Cart::where('user_id', $authUser->id)->get() : 
+        ($tempUser ? Cart::where('temp_user_id', $tempUser)->get() : []);
+
+    if ($carts->isEmpty()) {
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('home');
+    }
+
+    $shipping_info = $authUser ? Address::where('id', $carts[0]['address_id'])->first() : null;
+    $total = 0;
+    $tax = 0;
+    $shipping = 0;
+    $subtotal = 0;
+
+    if ($carts && count($carts) > 0) {
         foreach ($carts as $key => $cartItem) {
             $product = Product::find($cartItem['product_id']);
             $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-    
-            $cartItem['shipping_cost'] = getShippingCost($carts, $key);
-            $shipping += $cartItem['shipping_cost'];
-            $cartItem->save();
+
+            // Ensure the index $key is valid
+            if (isset($carts[$key])) {
+                if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
+                    $cartItem['shipping_type'] = $request['shipping_type_' . $product->user_id] == 'pickup_point' ? 'pickup_point' : 'home_delivery';
+                    $cartItem['shipping_cost'] = $cartItem['shipping_type'] == 'home_delivery' ? getShippingCost($carts, $key) : 0;
+                } else {
+                    $cartItem['shipping_type'] = 'carrier';
+                    $cartItem['carrier_id'] = $request['carrier_id_' . $product->user_id];
+                    $cartItem['shipping_cost'] = getShippingCost($carts, $key, $cartItem['carrier_id']);
+                }
+
+                $shipping += $cartItem['shipping_cost'];
+                $cartItem->save();
+            }
         }
-    
+
         $total = $subtotal + $tax + $shipping;
-    
-        return view('frontend.payment_select', compact('carts', 'total'));
+        return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
+    } else {
+        flash(translate('Your Cart was empty'))->warning();
+        return redirect()->route('home');
     }
+}
+
     
     // public function checkout(Request $request)
     // {
