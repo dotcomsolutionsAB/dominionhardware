@@ -955,48 +955,111 @@ class CheckoutController extends Controller
         return view('frontend.payment_select', compact('carts', 'total'));
     }
     
+    // public function checkout(Request $request)
+    // {
+    //     // Ensure a payment option is selected
+    //     if (!$request->payment_option) {
+    //         flash(translate('Please select a payment option.'))->warning();
+    //         return redirect()->route('checkout.payment_info');
+    //     }
+    
+    //     // Retrieve the authenticated user
+    //     // $user = auth()->user();
+    //     // $carts = Cart::where('user_id', $user->id)->active()->get();
+    //     // Retrieve the authenticated user or set to null if not logged in
+
+    //     $user = auth()->user();
+
+    //     // Check if the user is logged in or using guest checkout
+    //     if ($user) {
+    //         // If the user is logged in, get cart items using the user's ID
+    //         $carts = Cart::where('user_id', $user->id)->active()->get();
+    //     } else {
+    //         // If the user is a guest, get cart items using the temp_user_id from the session
+    //         $temp_user_id = $request->session()->get('temp_user_id');
+    //         $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : collect();
+    //     }
+
+    //     // If the cart is empty, redirect to home with a warning
+    //     if ($carts->isEmpty()) {
+    //         flash(translate('Your cart is empty'))->warning();
+    //         return redirect()->route('home');
+    //     }
+
+    //     // Check if the cart is empty
+    //     if ($carts->isEmpty()) {
+    //         flash(translate('Your cart is empty'))->warning();
+    //         return redirect()->route('home');
+    //     }
+    
+    //     // Check minimum order amount if enabled
+    //     if (get_setting('minimum_order_amount_check') == 1) {
+    //         $subtotal = 0;
+    //         foreach ($carts as $cartItem) {
+    //             $product = Product::find($cartItem['product_id']);
+    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+    //         }
+    //         if ($subtotal < get_setting('minimum_order_amount')) {
+    //             flash(translate('Your order amount is less than the minimum order amount'))->warning();
+    //             return redirect()->route('home');
+    //         }
+    //     }
+    
+    //     // Store the order and process payment
+    //     (new OrderController)->store($request);
+    
+    //     // Clear the cart after order placement
+    //     Cart::where('user_id', $user->id)->delete();
+    //     $request->session()->put('payment_type', 'cart_payment');
+    
+    //     // Redirect to the order confirmation page
+    //     return redirect()->route('order_confirmed');
+    // }
+    
     public function checkout(Request $request)
-    {
-        // Ensure a payment option is selected
-        if (!$request->payment_option) {
-            flash(translate('Please select a payment option.'))->warning();
-            return redirect()->route('checkout.payment_info');
-        }
-    
-        // Retrieve the authenticated user
-        $user = auth()->user();
-        $carts = Cart::where('user_id', $user->id)->active()->get();
-    
-        // Check if the cart is empty
-        if ($carts->isEmpty()) {
-            flash(translate('Your cart is empty'))->warning();
-            return redirect()->route('home');
-        }
-    
-        // Check minimum order amount if enabled
-        if (get_setting('minimum_order_amount_check') == 1) {
-            $subtotal = 0;
-            foreach ($carts as $cartItem) {
-                $product = Product::find($cartItem['product_id']);
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-            }
-            if ($subtotal < get_setting('minimum_order_amount')) {
-                flash(translate('Your order amount is less than the minimum order amount'))->warning();
-                return redirect()->route('home');
-            }
-        }
-    
-        // Store the order and process payment
-        (new OrderController)->store($request);
-    
-        // Clear the cart after order placement
-        Cart::where('user_id', $user->id)->delete();
-        $request->session()->put('payment_type', 'cart_payment');
-    
-        // Redirect to the order confirmation page
-        return redirect()->route('order_confirmed');
+{
+    // Ensure a payment option is selected
+    if (!$request->payment_option) {
+        flash(translate('Please select a payment option.'))->warning();
+        return redirect()->route('checkout.payment_info');
     }
-    
+
+    // Retrieve the authenticated user or temp user ID
+    $user = auth()->user();
+    $temp_user_id = $request->session()->get('temp_user_id');
+
+    // Get cart items for authenticated or guest user
+    $carts = $user ? 
+        Cart::where('user_id', $user->id)->active()->get() : 
+        Cart::where('temp_user_id', $temp_user_id)->active()->get();
+
+    // Check if the cart is empty
+    if ($carts->isEmpty()) {
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('home');
+    }
+
+    // Calculate the subtotal, tax, and shipping
+    $subtotal = 0;
+    $tax = 0;
+    $shipping = 0;
+    foreach ($carts as $cartItem) {
+        $product = Product::find($cartItem['product_id']);
+        $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+        $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+
+        // Calculate shipping cost (if applicable)
+        $cartItem['shipping_cost'] = getShippingCost($carts, $cartItem->id);
+        $shipping += $cartItem['shipping_cost'];
+    }
+
+    $total = $subtotal + $tax + $shipping;
+
+    // Pass all data to the checkout view for confirmation
+    return view('frontend.checkout', compact('carts', 'subtotal', 'tax', 'shipping', 'total'));
+}
+
+
     public function get_shipping_info(Request $request)
     {
         // Redirect guests to login if guest checkout is not enabled
