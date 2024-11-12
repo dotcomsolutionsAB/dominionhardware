@@ -78,7 +78,7 @@
 
 @section('modal')
     @if(Auth::check())
-        @include('frontend.partials.address.address_modal')
+        @include('frontend.partials.address_modal');
     @endif
 @endsection
 
