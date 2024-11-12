@@ -1223,15 +1223,27 @@ public function createUser($guest_shipping_info)
 
                 // Add the address in the addresses table
                 try {
+                    // $address = Address::create([
+                    //     'user_id' => $user->id,
+                    //     'address' => $request->address,
+                    //     'country_id' => $request->country_id,
+                    //     'state_id' => $request->state_id,
+                    //     'city_id' => $request->city_id,
+                    //     'postal_code' => $request->postal_code,
+                    // ]);
+
                     $address = Address::create([
-                        'user_id' => $user->id,
-                        'address' => $request->address,
-                        'country_id' => $request->country_id,
-                        'state_id' => $request->state_id,
-                        'city_id' => $request->city_id,
-                        'postal_code' => $request->postal_code,
+                        'user_id' => 22,
+                        'address' => "abcd",
+                        'country_id' => 7,
+                        'state_id' =>5,
+                        'city_id' => 3,
+                        'postal_code' => 713146,
                     ]);
                 
+                    echo $address['user_id'];
+                    echo $address['address'];
+
                     echo "Address created successfully: ";
                     echo "<pre>";
                     print_r($address);
