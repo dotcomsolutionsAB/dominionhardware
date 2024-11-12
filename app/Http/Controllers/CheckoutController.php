@@ -363,6 +363,8 @@ class CheckoutController extends Controller
     //     return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
 
     // }
+
+    //test
     public function checkout(Request $request)
 {
     $message = ''; // Initialize the message
@@ -891,102 +893,177 @@ class CheckoutController extends Controller
     }
 
 
-    public function store_delivery_info(Request $request)
-    {
-        // $carts = Cart::where('user_id', Auth::user()->id)
-        //     ->get();
+    // public function store_delivery_info(Request $request)
+    // {
+    //     // $carts = Cart::where('user_id', Auth::user()->id)
+    //     //     ->get();
 
-        // if ($carts->isEmpty()) {
-        //     flash(translate('Your cart is empty'))->warning();
-        //     return redirect()->route('home');
-        // }
+    //     // if ($carts->isEmpty()) {
+    //     //     flash(translate('Your cart is empty'))->warning();
+    //     //     return redirect()->route('home');
+    //     // }
 
-        $authUser = auth()->user();
-        $tempUser = $request->session()->has('temp_user_id') ? $request->session()->get('temp_user_id') : null;
-        $carts = auth()->user() != null ?
-                Cart::where('user_id', $authUser->id)->get() :
-                ($tempUser != null ? Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get() : null);
+    //     $authUser = auth()->user();
+    //     $tempUser = $request->session()->has('temp_user_id') ? $request->session()->get('temp_user_id') : null;
+    //     $carts = auth()->user() != null ?
+    //             Cart::where('user_id', $authUser->id)->get() :
+    //             ($tempUser != null ? Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get() : null);
 
-        if ($carts->isEmpty()) {
-            flash(translate('Your cart is empty'))->warning();
-            return redirect()->route('home');
-        }
+    //     if ($carts->isEmpty()) {
+    //         flash(translate('Your cart is empty'))->warning();
+    //         return redirect()->route('home');
+    //     }
 
-        $shipping_info = $authUser != null ? Address::where('id', $carts[0]['address_id'])->first() : null;
-        $deliveryInfo = [];
+    //     $shipping_info = $authUser != null ? Address::where('id', $carts[0]['address_id'])->first() : null;
+    //     $deliveryInfo = [];
 
-        // Logged In User Delivery info
-        if($authUser != null){
-            $deliveryInfo['country_id'] = $shipping_info->country_id;
-            $deliveryInfo['city_id'] = $shipping_info->city_id;
-        }
+    //     // Logged In User Delivery info
+    //     if($authUser != null){
+    //         $deliveryInfo['country_id'] = $shipping_info->country_id;
+    //         $deliveryInfo['city_id'] = $shipping_info->city_id;
+    //     }
 
-        // Guest User Shipping info
-        elseif($tempUser != null){
-            $deliveryInfo['country_id'] = Session::get('guest_shipping_info')['country_id'];
-            $deliveryInfo['city_id'] = Session::get('guest_shipping_info')['city_id'];
-        }
+    //     // Guest User Shipping info
+    //     elseif($tempUser != null){
+    //         $deliveryInfo['country_id'] = Session::get('guest_shipping_info')['country_id'];
+    //         $deliveryInfo['city_id'] = Session::get('guest_shipping_info')['city_id'];
+    //     }
 
-        $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
-        $total = 0;
-        $tax = 0;
-        $shipping = 0;
-        $subtotal = 0;
+    //     $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
+    //     $total = 0;
+    //     $tax = 0;
+    //     $shipping = 0;
+    //     $subtotal = 0;
 
-            // echo "  : shipping_info Address ID:  ";
-            // echo "<pre>";
-            //     print_r($shipping_info);
-            // echo "</pre>";
+    //         // echo "  : shipping_info Address ID:  ";
+    //         // echo "<pre>";
+    //         //     print_r($shipping_info);
+    //         // echo "</pre>";
 
-        if ($carts && count($carts) > 0) {
-            foreach ($carts as $key => $cartItem) {
-                $product = Product::find($cartItem['product_id']);
-                $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+    //     if ($carts && count($carts) > 0) {
+    //         foreach ($carts as $key => $cartItem) {
+    //             $product = Product::find($cartItem['product_id']);
+    //             $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
 
-                if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
-                    if ($request['shipping_type_' . $product->user_id] == 'pickup_point') {
-                        $cartItem['shipping_type'] = 'pickup_point';
-                        $cartItem['pickup_point'] = $request['pickup_point_id_' . $product->user_id];
-                    } else {
-                        $cartItem['shipping_type'] = 'home_delivery';
-                    }
-                    $cartItem['shipping_cost'] = 0;
-                    if ($cartItem['shipping_type'] == 'home_delivery') {
-                        $cartItem['shipping_cost'] = getShippingCost($carts, $key);
-                    }
-                } else {
-                    $cartItem['shipping_type'] = 'carrier';
-                    $cartItem['carrier_id'] = $request['carrier_id_' . $product->user_id];
-                    $cartItem['shipping_cost'] = getShippingCost($carts, $key, $cartItem['carrier_id']);
-                }
+    //             if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
+    //                 if ($request['shipping_type_' . $product->user_id] == 'pickup_point') {
+    //                     $cartItem['shipping_type'] = 'pickup_point';
+    //                     $cartItem['pickup_point'] = $request['pickup_point_id_' . $product->user_id];
+    //                 } else {
+    //                     $cartItem['shipping_type'] = 'home_delivery';
+    //                 }
+    //                 $cartItem['shipping_cost'] = 0;
+    //                 if ($cartItem['shipping_type'] == 'home_delivery') {
+    //                     $cartItem['shipping_cost'] = getShippingCost($carts, $key);
+    //                 }
+    //             } else {
+    //                 $cartItem['shipping_type'] = 'carrier';
+    //                 $cartItem['carrier_id'] = $request['carrier_id_' . $product->user_id];
+    //                 $cartItem['shipping_cost'] = getShippingCost($carts, $key, $cartItem['carrier_id']);
+    //             }
 
-                $shipping += $cartItem['shipping_cost'];
-                $cartItem->save();
-            }
-            $total = $subtotal + $tax + $shipping;
-            // echo "  : carts  ";
-            // echo "<pre>";
-            //     print_r($carts);
-            // echo "</pre>";
+    //             $shipping += $cartItem['shipping_cost'];
+    //             $cartItem->save();
+    //         }
+    //         $total = $subtotal + $tax + $shipping;
+    //         // echo "  : carts  ";
+    //         // echo "<pre>";
+    //         //     print_r($carts);
+    //         // echo "</pre>";
 
-            // echo "  : shipping_info  ";
-            // echo "<pre>";
-            //     print_r($shipping_info);
-            // echo "</pre>";
+    //         // echo "  : shipping_info  ";
+    //         // echo "<pre>";
+    //         //     print_r($shipping_info);
+    //         // echo "</pre>";
             
-            // echo "  : total  ";
-            // echo "<pre>";
-            //     print_r($total);
-            // echo "</pre>";
-            // dd($shipping_info);
-            // return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
-            return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
-        } else {
-            flash(translate('Your Cart was empty'))->warning();
-            return redirect()->route('home');
+    //         // echo "  : total  ";
+    //         // echo "<pre>";
+    //         //     print_r($total);
+    //         // echo "</pre>";
+    //         // dd($shipping_info);
+    //         // return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
+    //         return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
+    //     } else {
+    //         flash(translate('Your Cart was empty'))->warning();
+    //         return redirect()->route('home');
+    //     }
+    // }
+    public function store_delivery_info(Request $request)
+{
+    $authUser = auth()->user();
+    $tempUser = $request->session()->has('temp_user_id') ? $request->session()->get('temp_user_id') : null;
+    $carts = $authUser != null ? 
+             Cart::where('user_id', $authUser->id)->get() : 
+             ($tempUser != null ? Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get() : null);
+
+    if ($carts == null || $carts->isEmpty()) {
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('home');
+    }
+
+    // Check if address_id exists before accessing it
+    $shipping_info = null;
+    if ($authUser != null && isset($carts[0]['address_id'])) {
+        $shipping_info = Address::where('id', $carts[0]['address_id'])->first();
+    }
+
+    $deliveryInfo = [];
+
+    // Logged In User Delivery info
+    if ($authUser != null && $shipping_info != null) {
+        $deliveryInfo['country_id'] = $shipping_info->country_id;
+        $deliveryInfo['city_id'] = $shipping_info->city_id;
+    }
+    // Guest User Shipping info
+    elseif ($tempUser != null) {
+        $guest_shipping_info = Session::get('guest_shipping_info');
+        if ($guest_shipping_info) {
+            $deliveryInfo['country_id'] = $guest_shipping_info['country_id'];
+            $deliveryInfo['city_id'] = $guest_shipping_info['city_id'];
         }
     }
+
+    $total = 0;
+    $tax = 0;
+    $shipping = 0;
+    $subtotal = 0;
+
+    if ($carts && count($carts) > 0) {
+        foreach ($carts as $key => $cartItem) {
+            $product = Product::find($cartItem['product_id']);
+            $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+
+            if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
+                if ($request['shipping_type_' . $product->user_id] == 'pickup_point') {
+                    $cartItem['shipping_type'] = 'pickup_point';
+                    $cartItem['pickup_point'] = $request['pickup_point_id_' . $product->user_id];
+                } else {
+                    $cartItem['shipping_type'] = 'home_delivery';
+                }
+                $cartItem['shipping_cost'] = 0;
+                if ($cartItem['shipping_type'] == 'home_delivery') {
+                    $cartItem['shipping_cost'] = getShippingCost($carts, $key);
+                }
+            } else {
+                $cartItem['shipping_type'] = 'carrier';
+                $cartItem['carrier_id'] = $request['carrier_id_' . $product->user_id];
+                $cartItem['shipping_cost'] = getShippingCost($carts, $key, $cartItem['carrier_id']);
+            }
+
+            $shipping += $cartItem['shipping_cost'];
+            $cartItem->save();
+        }
+
+        $total = $subtotal + $tax + $shipping;
+        return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
+    } else {
+        flash(translate('Your Cart was empty'))->warning();
+        return redirect()->route('home');
+    }
+}
+
     // public function yourControllerFunction()
     // {
     //     // Set some sample session data for testing
