@@ -1223,24 +1223,19 @@ public function createUser($guest_shipping_info)
 
                 // Add the address in the addresses table
                 try {
-                    // $address = Address::create([
-                    //     'user_id' => $user->id,
-                    //     'address' => $request->address,
-                    //     'country_id' => $request->country_id,
-                    //     'state_id' => $request->state_id,
-                    //     'city_id' => $request->city_id,
-                    //     'postal_code' => $request->postal_code,
-                    // ]);
-
                     $address = Address::create([
-                        'user_id' => 22,
-                        'address' => "abcd",
-                        'country_id' => 7,
-                        'state_id' =>5,
-                        'city_id' => 3,
-                        'postal_code' => 713146,
+                        'user_id' => $user->id,
+                        // 'company'=>$request->name,
+                        'gstin'=>$request->gstin,
+                        'phone'=>$request->phone,
+                        'address' => $request->address,
+                        'country_id' => $request->country_id,
+                        'state_id' => $request->state_id,
+                        'city_id' => $request->city_id,
+                        'postal_code' => $request->postal_code,
                     ]);
-                
+
+                                    
                     echo $address['user_id'];
                     echo $address['address'];
 
@@ -1248,6 +1243,7 @@ public function createUser($guest_shipping_info)
                     echo "<pre>";
                     print_r($address);
                     echo "</pre>";
+                    // die();
                 } catch (\Exception $e) {
                     // Catch and display the error message
                     echo "Error: ";
@@ -1268,22 +1264,22 @@ public function createUser($guest_shipping_info)
                 flash(translate('Your cart is empty'))->warning();
                 return redirect()->route('home');
             }
-            echo "carts : ";
-            echo "<pre>";
-            print_r($carts);
-            echo "</pre>";
+            // echo "carts : ";
+            // echo "<pre>";
+            // print_r($carts);
+            // echo "</pre>";
 
-            echo "address : ";
-            echo "<pre>";
-            print_r($address);
-            echo "</pre>";
+            // echo "address : ";
+            // echo "<pre>";
+            // print_r($address);
+            // echo "</pre>";
 
-            echo "user : ";
-            echo "<pre>";
-            print_r($user);
-            echo "</pre>";
+            // echo "user : ";
+            // echo "<pre>";
+            // print_r($user);
+            // echo "</pre>";
 
-            die;
+            // die;
 
             return view('frontend.delivery_info', compact('carts'));
         }
