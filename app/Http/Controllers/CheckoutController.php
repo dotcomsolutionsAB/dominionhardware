@@ -741,138 +741,202 @@ class CheckoutController extends Controller
     //     return view('frontend.checkout');
     // }
 
-    public function index(Request $request)
-    {
-        // Check if guest checkout is allowed
-        if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
-            return redirect()->route('user.login');
-        }
-    
-        // Redirect unverified email users
-        if (auth()->check() && !$request->user()->hasVerifiedEmail()) {
-            return redirect()->route('verification.notice');
-        }
-    
-        $country_id = 0;
-        $city_id = 0;
-        $address_id = 0;
-        $shipping_info = [];
-    
-        // Handle logged-in user
-        if (auth()->check()) {
-            $user_id = Auth::user()->id;
-            $carts = Cart::where('user_id', $user_id)->active()->get();
-            $addresses = Address::where('user_id', $user_id)->get();
-            
-            if (count($addresses)) {
-                $address = $addresses->first();
-                $address_id = $address->id;
-                $country_id = $address->country_id;
-                $city_id = $address->city_id;
-                
-                $default_address = $addresses->where('set_default', 1)->first();
-                if ($default_address != null) {
-                    $address_id = $default_address->id;
-                    $country_id = $default_address->country_id;
-                    $city_id = $default_address->city_id;
-                }
-            }
-        } else {
-            // Handle guest user
-            $temp_user_id = $request->session()->get('temp_user_id');
-            $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
-        }
-    
-        $shipping_info['country_id'] = $country_id;
-        $shipping_info['city_id'] = $city_id;
-        $total = 0;
-        $tax = 0;
-        $shipping = 0;
-        $subtotal = 0;
-    
-        if ($carts && count($carts) > 0) {
-            foreach ($carts as $key => $cartItem) {
-                $product = Product::find($cartItem['product_id']);
-                $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-                
-                $cartItem['shipping_cost'] = getShippingCost($carts, $key, $shipping_info);
-                $shipping += $cartItem['shipping_cost'];
-                $cartItem->save();
-            }
-    
-            $total = $subtotal + $tax + $shipping;
-            return view('frontend.shipping_info', compact('carts', 'address_id', 'total', 'shipping_info'));
-        }
-    
-        flash(translate('Please select cart items to proceed'))->error();
-        return back();
+public function index(Request $request)
+{
+    if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
+        return redirect()->route('user.login');
     }
-    
-    public function createUser($guest_shipping_info)
-    {
-        // Validate the input
-        $validator = Validator::make($guest_shipping_info, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'phone' => 'required|max:12',
-            'address' => 'required|max:255',
-            'country_id' => 'required|integer',
-            'state_id' => 'required|integer',
-            'city_id' => 'required|integer',
-            'postal_code' => 'required|max:10',
-        ]);
-    
-        if ($validator->fails()) {
-            return $validator->errors();
+
+    if (auth()->check() && !$request->user()->hasVerifiedEmail()) {
+        return redirect()->route('verification.notice');
+    }
+
+    $country_id = 0;
+    $city_id = 0;
+    $address_id = 0;
+    $shipping_info = [];
+
+    if (auth()->check()) {
+        $user_id = Auth::user()->id;
+        $carts = Cart::where('user_id', $user_id)->active()->get();
+        $addresses = Address::where('user_id', $user_id)->get();
+        if (count($addresses)) {
+            $address = $addresses->first();
+            $address_id = $address->id;
+            $country_id = $address->country_id;
+            $city_id = $address->city_id;
+            $default_address = $addresses->where('set_default', 1)->first();
+            if ($default_address) {
+                $address_id = $default_address->id;
+                $country_id = $default_address->country_id;
+                $city_id = $default_address->city_id;
+            }
         }
-    
-        // Check if the user already exists
-        $existingUser = User::where('email', $guest_shipping_info['email'])->first();
-        if ($existingUser) {
-            return redirect()->route('user.login')->with('info', translate('Please log in to proceed with your existing account.'));
+    } else {
+        $temp_user_id = $request->session()->get('temp_user_id');
+        $carts = ($temp_user_id) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
+    }
+
+    $shipping_info['country_id'] = $country_id;
+    $shipping_info['city_id'] = $city_id;
+    $total = 0;
+    $tax = 0;
+    $shipping = 0;
+    $subtotal = 0;
+
+    if ($carts && count($carts) > 0) {
+        $carts->update(['address_id' => $address_id]);
+        $carts = $carts->fresh();
+
+        foreach ($carts as $cartItem) {
+            $product = Product::find($cartItem['product_id']);
+            $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+            $cartItem['shipping_cost'] = getShippingCost($carts, $cartItem->id, $shipping_info);
+            $shipping += $cartItem['shipping_cost'];
+            $cartItem->save();
         }
-    
-        // Create a new user
-        $password = substr(hash('sha512', rand()), 0, 8);
-        $user = User::create([
+
+        $total = $subtotal + $tax + $shipping;
+        return view('frontend.shipping_info', compact('carts', 'address_id', 'total', 'shipping_info'));
+    }
+
+    flash(translate('Please select cart items to proceed'))->error();
+    return back();
+}
+
+public function checkout(Request $request)
+{
+    if (auth()->user() == null) {
+        $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+
+        if (is_object($guest_user)) {
+            return redirect()->route('checkout')->withErrors($guest_user);
+        }
+
+        if ($guest_user == 0) {
+            flash(translate('Guest user creation failed. Please try again later.'))->warning();
+            return redirect()->route('checkout');
+        }
+    }
+
+    if ($request->payment_option == null) {
+        flash(translate('Please select a payment option.'))->warning();
+        return redirect()->route('checkout.shipping_info');
+    }
+
+    $user = auth()->user();
+    $carts = Cart::where('user_id', $user->id)->active()->get();
+
+    if (get_setting('minimum_order_amount_check') == 1) {
+        $subtotal = 0;
+        foreach ($carts as $cartItem) {
+            $product = Product::find($cartItem['product_id']);
+            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+        }
+        if ($subtotal < get_setting('minimum_order_amount')) {
+            flash(translate('Your order amount is less than the minimum order amount'))->warning();
+            return redirect()->route('home');
+        }
+    }
+
+    (new OrderController)->store($request);
+
+    if (count($carts) > 0) {
+        Cart::where('user_id', $user->id)->delete();
+    }
+
+    $request->session()->put('payment_type', 'cart_payment');
+    $data['combined_order_id'] = $request->session()->get('combined_order_id');
+    $request->session()->put('payment_data', $data);
+
+    if ($request->session()->get('combined_order_id')) {
+        $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
+        if (class_exists($decorator)) {
+            return (new $decorator)->pay($request);
+        } else {
+            $combined_order = CombinedOrder::findOrFail($request->session()->get('combined_order_id'));
+            foreach ($combined_order->orders as $order) {
+                $order->manual_payment = 1;
+                $order->manual_payment_data = json_encode([
+                    'name' => $request->payment_option,
+                    'amount' => $combined_order->grand_total,
+                    'trx_id' => $request->trx_id,
+                    'photo' => $request->photo,
+                ]);
+                $order->save();
+            }
+            flash(translate('Your order has been placed successfully.'))->success();
+            return redirect()->route('order_confirmed');
+        }
+    }
+}
+
+public function createUser($guest_shipping_info)
+{
+    $validator = Validator::make($guest_shipping_info, [
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|max:255',
+        'phone' => 'required|max:12',
+        'address' => 'required|max:255',
+        'country_id' => 'required|integer',
+        'state_id' => 'required|integer',
+        'city_id' => 'required|integer',
+        'postal_code' => 'required|max:10',
+        'gstin' => 'max:255',
+    ]);
+
+    if ($validator->fails()) {
+        return $validator->errors();
+    }
+
+    $password = substr(hash('sha512', rand()), 0, 8);
+    $isEmailVerificationEnabled = get_setting('email_verification');
+
+    $user = User::updateOrCreate(
+        ['email' => $guest_shipping_info['email']],
+        [
             'name' => $guest_shipping_info['name'],
-            'email' => $guest_shipping_info['email'],
             'phone' => $guest_shipping_info['phone'],
             'password' => Hash::make($password),
-            'email_verified_at' => now(),
-        ]);
-    
-        // Create an address for the user
-        $address = Address::create([
-            'user_id' => $user->id,
-            'address' => $guest_shipping_info['address'],
-            'country_id' => $guest_shipping_info['country_id'],
-            'state_id' => $guest_shipping_info['state_id'],
-            'city_id' => $guest_shipping_info['city_id'],
-            'postal_code' => $guest_shipping_info['postal_code'],
-            'phone' => $guest_shipping_info['phone'],
-        ]);
-    
-        // Link cart items to the new user
-        $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
-        foreach ($carts as $cart) {
-            $cart->update([
-                'user_id' => $user->id,
-                'address_id' => $address->id,
-                'temp_user_id' => null,
-            ]);
-        }
-    
-        // Log in the user
-        auth()->login($user);
-    
-        // Clear session data
-        session()->forget('temp_user_id');
-        session()->forget('guest_shipping_info');
-    
-        return $user;
+            'email_verified_at' => $isEmailVerificationEnabled ? null : now(),
+        ]
+    );
+
+    if (!$user->wasRecentlyCreated && !$user->exists) {
+        return 'User creation failed';
     }
+
+    $address = new Address([
+        'user_id' => $user->id,
+        'address' => $guest_shipping_info['address'],
+        'country_id' => $guest_shipping_info['country_id'],
+        'state_id' => $guest_shipping_info['state_id'],
+        'city_id' => $guest_shipping_info['city_id'],
+        'postal_code' => $guest_shipping_info['postal_code'],
+        'phone' => $guest_shipping_info['phone'],
+        'longitude' => $guest_shipping_info['longitude'] ?? null,
+        'latitude' => $guest_shipping_info['latitude'] ?? null,
+        'gstin' => $guest_shipping_info['gstin'] ?? null,
+    ]);
+
+    $address->save();
+
+    $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+    foreach ($carts as $cart) {
+        $cart->update([
+            'user_id' => $user->id,
+            'address_id' => $address->id,
+            'temp_user_id' => null,
+        ]);
+    }
+
+    auth()->login($user);
+    Session::forget('temp_user_id');
+    Session::forget('guest_shipping_info');
+
+    return $user;
+}
     
     public function store_shipping_info(Request $request)
     {
@@ -924,210 +988,37 @@ class CheckoutController extends Controller
         return view('frontend.delivery_info', compact('carts'));
     }
     
-    // public function store_delivery_info(Request $request)
-    // {
-    //     $authUser = auth()->user();
-    //     $tempUser = session('temp_user_id');
-    //     $carts = $authUser ? Cart::where('user_id', $authUser->id)->get() : Cart::where('temp_user_id', $tempUser)->get();
-    
-    //     if ($carts->isEmpty()) {
-    //         flash(translate('Your cart is empty'))->warning();
-    //         return redirect()->route('home');
-    //     }
-    
-    //     $total = 0;
-    //     $tax = 0;
-    //     $shipping = 0;
-    //     $subtotal = 0;
-    
-    //     foreach ($carts as $key => $cartItem) {
-    //         $product = Product::find($cartItem['product_id']);
-    //         $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-    //         $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-    
-    //         $cartItem['shipping_cost'] = getShippingCost($carts, $key);
-    //         $shipping += $cartItem['shipping_cost'];
-    //         $cartItem->save();
-    //     }
-    
-    //     $total = $subtotal + $tax + $shipping;
-    
-    //     return view('frontend.payment_select', compact('carts', 'total'));
-    // }
     public function store_delivery_info(Request $request)
     {
         $authUser = auth()->user();
-        $tempUser = $request->session()->has('temp_user_id') ? $request->session()->get('temp_user_id') : null;
-        
-        $carts = $authUser ? 
-            Cart::where('user_id', $authUser->id)->get() : 
-            ($tempUser ? Cart::where('temp_user_id', $tempUser)->get() : collect()); // Ensure $carts is always a collection
+        $tempUser = session('temp_user_id');
+        $carts = $authUser ? Cart::where('user_id', $authUser->id)->get() : Cart::where('temp_user_id', $tempUser)->get();
     
-        // Check if $carts is empty
         if ($carts->isEmpty()) {
             flash(translate('Your cart is empty'))->warning();
             return redirect()->route('home');
         }
     
-        // Debug: Log all cart keys
-        \Log::info('Cart keys: ' . implode(', ', $carts->keys()->toArray()));
-    
-        $shipping_info = $authUser ? Address::where('id', $carts->first()->address_id)->first() : null;
         $total = 0;
         $tax = 0;
         $shipping = 0;
         $subtotal = 0;
     
-        if ($carts->count() > 0) {
-            foreach ($carts as $key => $cartItem) {
-                $product = Product::find($cartItem->product_id); // Use -> to access properties of an object
-                $tax += cart_product_tax($cartItem, $product, false) * $cartItem->quantity;
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem->quantity;
+        foreach ($carts as $key => $cartItem) {
+            $product = Product::find($cartItem['product_id']);
+            $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+            $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
     
-                // Check if the cart item is valid before accessing
-                if ($cartItem) {
-                    if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
-                        $cartItem->shipping_type = $request['shipping_type_' . $product->user_id] == 'pickup_point' ? 'pickup_point' : 'home_delivery';
-                        $cartItem->shipping_cost = $cartItem->shipping_type == 'home_delivery' ? getShippingCost($carts, $key) : 0;
-                    } else {
-                        $cartItem->shipping_type = 'carrier';
-                        $cartItem->carrier_id = $request['carrier_id_' . $product->user_id];
-                        $cartItem->shipping_cost = getShippingCost($carts, $key, $cartItem->carrier_id);
-                    }
-    
-                    $shipping += $cartItem->shipping_cost;
-                    $cartItem->save();
-                } else {
-                    \Log::warning("Invalid cart item at index: $key"); // Log a warning for invalid cart items
-                }
-            }
-    
-            $total = $subtotal + $tax + $shipping;
-            return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
-        } else {
-            flash(translate('Your Cart was empty'))->warning();
-            return redirect()->route('home');
+            $cartItem['shipping_cost'] = getShippingCost($carts, $key);
+            $shipping += $cartItem['shipping_cost'];
+            $cartItem->save();
         }
+    
+        $total = $subtotal + $tax + $shipping;
+    
+        return view('frontend.payment_select', compact('carts', 'total'));
     }
     
-    
-
-    
-    // public function checkout(Request $request)
-    // {
-    //     // Ensure a payment option is selected
-    //     if (!$request->payment_option) {
-    //         flash(translate('Please select a payment option.'))->warning();
-    //         return redirect()->route('checkout.payment_info');
-    //     }
-    
-    //     // Retrieve the authenticated user
-    //     // $user = auth()->user();
-    //     // $carts = Cart::where('user_id', $user->id)->active()->get();
-    //     // Retrieve the authenticated user or set to null if not logged in
-
-    //     $user = auth()->user();
-
-    //     // Check if the user is logged in or using guest checkout
-    //     if ($user) {
-    //         // If the user is logged in, get cart items using the user's ID
-    //         $carts = Cart::where('user_id', $user->id)->active()->get();
-    //     } else {
-    //         // If the user is a guest, get cart items using the temp_user_id from the session
-    //         $temp_user_id = $request->session()->get('temp_user_id');
-    //         $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : collect();
-    //     }
-
-    //     // If the cart is empty, redirect to home with a warning
-    //     if ($carts->isEmpty()) {
-    //         flash(translate('Your cart is empty'))->warning();
-    //         return redirect()->route('home');
-    //     }
-
-    //     // Check if the cart is empty
-    //     if ($carts->isEmpty()) {
-    //         flash(translate('Your cart is empty'))->warning();
-    //         return redirect()->route('home');
-    //     }
-    
-    //     // Check minimum order amount if enabled
-    //     if (get_setting('minimum_order_amount_check') == 1) {
-    //         $subtotal = 0;
-    //         foreach ($carts as $cartItem) {
-    //             $product = Product::find($cartItem['product_id']);
-    //             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-    //         }
-    //         if ($subtotal < get_setting('minimum_order_amount')) {
-    //             flash(translate('Your order amount is less than the minimum order amount'))->warning();
-    //             return redirect()->route('home');
-    //         }
-    //     }
-    
-    //     // Store the order and process payment
-    //     (new OrderController)->store($request);
-    
-    //     // Clear the cart after order placement
-    //     Cart::where('user_id', $user->id)->delete();
-    //     $request->session()->put('payment_type', 'cart_payment');
-    
-    //     // Redirect to the order confirmation page
-    //     return redirect()->route('order_confirmed');
-    // }
-    
-    public function checkout(Request $request)
-{
-    \Log::info('Checkout request data:', $request->all());
-    dd($request->all());
-    // Ensure a payment option is selected
-    if (!$request->payment_option) {
-        flash(translate('Please select a payment option.'))->warning();
-        return redirect()->route('checkout.payment_info');
-    }
-
-    // Retrieve the authenticated user or temp user ID
-    $user = auth()->user();
-    $temp_user_id = $request->session()->get('temp_user_id');
-
-    // Get cart items for authenticated or guest user
-    $carts = $user ? 
-        Cart::where('user_id', $user->id)->active()->get() : 
-        Cart::where('temp_user_id', $temp_user_id)->active()->get();
-
-    // Check if the cart is empty
-    if ($carts->isEmpty()) {
-        flash(translate('Your cart is empty'))->warning();
-        return redirect()->route('home');
-    }
-
-    // Calculate the subtotal, tax, and shipping
-    $subtotal = 0;
-    $tax = 0;
-    $shipping = 0;
-    foreach ($carts as $cartItem) {
-        $product = Product::find($cartItem['product_id']);
-        $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-        $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-
-        // Calculate shipping cost (if applicable)
-        $cartItem['shipping_cost'] = getShippingCost($carts, $cartItem->id);
-        $shipping += $cartItem['shipping_cost'];
-    }
-
-    $total = $subtotal + $tax + $shipping;
-
-    // Pass all data to the checkout view for confirmation
-    // return view('frontend.checkout', compact('carts', 'subtotal', 'tax', 'shipping', 'total'));
-    // Check if $shipping_info is defined, otherwise set a default value
-if (!isset($shipping_info)) {
-    $shipping_info = []; // or set it to a default value that makes sense for your logic
-}
-
-return view('frontend.payment_select', compact('carts', 'shipping_info', 'subtotal', 'tax', 'total', 'request'));
-
-
-}
-
-
     public function get_shipping_info(Request $request)
     {
         // Redirect guests to login if guest checkout is not enabled
