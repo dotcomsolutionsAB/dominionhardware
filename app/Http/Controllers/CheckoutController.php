@@ -1174,79 +1174,95 @@ public function createUser($guest_shipping_info)
     
 
         public function store_shipping_info(Request $request)
-{
-    dd($request->all());
-    
-    $auth_user = auth()->user();
-    $temp_user_id = $request->session()->get('temp_user_id');
+        {
+            
+            
+            $auth_user = auth()->user();
+            $temp_user_id = $request->session()->get('temp_user_id');
 
-    if (!$auth_user && get_setting('guest_checkout_activation') == 0) {
-        return redirect()->route('user.login');
-    }
+            if (!$auth_user && get_setting('guest_checkout_activation') == 0) {
+                return redirect()->route('user.login');
+            }
 
-    if ($auth_user) {
-        if ($request->address_id == null) {
-            flash(translate("Please add a shipping address"))->warning();
-            return back();
+            if ($auth_user) {
+                if ($request->address_id == null) {
+                    flash(translate("Please add a shipping address"))->warning();
+                    return back();
+                }
+
+                // Save address_id for logged-in user
+                $carts = Cart::where('user_id', $auth_user->id)->get();
+                foreach ($carts as $cartItem) {
+                    $cartItem->address_id = $request->address_id;
+                    $cartItem->save();
+                }
+            } else {
+                $request->validate([
+                    'name' => 'required',
+                    'email' => 'required|email',
+                    'phone' => 'required',
+                    'address' => 'required',
+                    'country_id' => 'required',
+                    'state_id' => 'required',
+                    'city_id' => 'required',
+                    'postal_code' => 'required',
+                ]);
+
+                // Check if the email already exists in the users table
+                $user = User::where('email', $request->email)->first();
+                
+                if (!$user) {
+                    // Create a new user if email doesn't exist
+                    $user = User::create([
+                        'name' => $request->name,
+                        'email' => $request->email,
+                        'phone' => $request->phone,
+                        'password' => bcrypt('default_password'), // You may want to ask the user to reset this later
+                    ]);
+                }
+
+                // Add the address in the addresses table
+                $address = Address::create([
+                    'user_id' => $user->id,
+                    'address' => $request->address,
+                    'country_id' => $request->country_id,
+                    'state_id' => $request->state_id,
+                    'city_id' => $request->city_id,
+                    'postal_code' => $request->postal_code,
+                ]);
+
+                // Update the user_id in the cart table and remove temp_user_id
+                $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+                foreach ($carts as $cartItem) {
+                    $cartItem->user_id = $user->id;
+                    $cartItem->temp_user_id = null;
+                    $cartItem->save();
+                }
+            }
+
+            if ($carts->isEmpty()) {
+                flash(translate('Your cart is empty'))->warning();
+                return redirect()->route('home');
+            }
+            echo "carts : ";
+            echo "<pre>";
+            print_r($carts);
+            echo "</pre>";
+
+            echo "address : ";
+            echo "<pre>";
+            print_r($address);
+            echo "</pre>";
+
+            echo "user : ";
+            echo "<pre>";
+            print_r($user);
+            echo "</pre>";
+
+            die;
+
+            return view('frontend.delivery_info', compact('carts'));
         }
-
-        // Save address_id for logged-in user
-        $carts = Cart::where('user_id', $auth_user->id)->get();
-        foreach ($carts as $cartItem) {
-            $cartItem->address_id = $request->address_id;
-            $cartItem->save();
-        }
-    } else {
-        $request->validate([
-            'name' => 'required',
-            'email' => 'required|email',
-            'phone' => 'required',
-            'address' => 'required',
-            'country_id' => 'required',
-            'state_id' => 'required',
-            'city_id' => 'required',
-            'postal_code' => 'required',
-        ]);
-
-        // Check if the email already exists in the users table
-        $user = User::where('email', $request->email)->first();
-        
-        if (!$user) {
-            // Create a new user if email doesn't exist
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'password' => bcrypt('default_password'), // You may want to ask the user to reset this later
-            ]);
-        }
-
-        // Add the address in the addresses table
-        $address = Address::create([
-            'user_id' => $user->id,
-            'address' => $request->address,
-            'country_id' => $request->country_id,
-            'state_id' => $request->state_id,
-            'city_id' => $request->city_id,
-            'postal_code' => $request->postal_code,
-        ]);
-
-        // Update the user_id in the cart table and remove temp_user_id
-        $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
-        foreach ($carts as $cartItem) {
-            $cartItem->user_id = $user->id;
-            $cartItem->temp_user_id = null;
-            $cartItem->save();
-        }
-    }
-
-    if ($carts->isEmpty()) {
-        flash(translate('Your cart is empty'))->warning();
-        return redirect()->route('home');
-    }
-
-    return view('frontend.delivery_info', compact('carts'));
-}
 
     
     public function store_delivery_info(Request $request)
