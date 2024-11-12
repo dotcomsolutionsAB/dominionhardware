@@ -373,6 +373,9 @@ class CheckoutController extends Controller
     $carts = session()->get('cart', []); // Or use your method to fetch cart items
     $total = array_sum(array_column($carts, 'total')); // Calculate the total if necessary
 
+    // Retrieve shipping information from session or request
+    $shipping_info = session()->get('shipping_info', []); // Or use your method to fetch shipping info
+
     // Check if guest checkout, create user
     if (auth()->user() == null) {
         // Use session data for guest shipping info if available
@@ -385,19 +388,19 @@ class CheckoutController extends Controller
         // Handle guest user creation errors
         if (is_object($guest_user)) {
             $errors = $guest_user;
-            return view('frontend.checkout', compact('errors', 'message', 'combined_order_id', 'session_data', 'carts', 'total'));
+            return view('frontend.checkout', compact('errors', 'message', 'combined_order_id', 'session_data', 'carts', 'total', 'shipping_info'));
         }
 
         if ($guest_user == 0) {
             $message = 'Guest user creation failed. Please try again later.';
-            return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total'));
+            return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total', 'shipping_info'));
         }
     }
 
     // Check if a payment option is selected
     if ($request->payment_option != null || $request->payment_option == 'cash_on_delivery') {
         $message = 'No payment option selected.';
-        return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total'));
+        return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total', 'shipping_info'));
     }
 
     // Proceed with storing the order
@@ -410,7 +413,7 @@ class CheckoutController extends Controller
     $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
 
     // Pass all variables to the view
-    return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total'));
+    return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total', 'shipping_info'));
 }
 
 
