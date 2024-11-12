@@ -1221,6 +1221,9 @@ public function store_shipping_info(Request $request)
                 'password' => bcrypt('default_password'), // You may want to ask the user to reset this later
             ]);
 
+              // Add the current timestamp to the email_verified_at column
+            $user->email_verified_at = now();
+            $user->save();
             // Automatically log the user in
             Auth::login($user);
         } else {
