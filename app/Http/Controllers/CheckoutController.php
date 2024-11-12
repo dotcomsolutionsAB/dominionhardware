@@ -1231,6 +1231,12 @@ public function createUser($guest_shipping_info)
                     'postal_code' => $request->postal_code,
                 ]);
 
+                echo "address : ";
+                echo "<pre>";
+                print_r($address);
+                echo "</pre>";
+                die();
+
                 // Update the user_id in the cart table and remove temp_user_id
                 $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
                 foreach ($carts as $cartItem) {
