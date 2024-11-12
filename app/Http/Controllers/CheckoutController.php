@@ -1173,79 +1173,98 @@ public function createUser($guest_shipping_info)
 // }
     
 
-        public function store_shipping_info(Request $request)
-        {
-            
-            
-            $auth_user = auth()->user();
-            $temp_user_id = $request->session()->get('temp_user_id');
+public function store_shipping_info(Request $request)
+{
+    $auth_user = auth()->user();
+    $temp_user_id = $request->session()->get('temp_user_id');
 
-            if (!$auth_user && get_setting('guest_checkout_activation') == 0) {
-                return redirect()->route('user.login');
-            }
+    if (!$auth_user && get_setting('guest_checkout_activation') == 0) {
+        return redirect()->route('user.login');
+    }
 
-            if ($auth_user) {
-                if ($request->address_id == null) {
-                    flash(translate("Please add a shipping address"))->warning();
-                    return back();
-                }
-
-                // Save address_id for logged-in user
-                $carts = Cart::where('user_id', $auth_user->id)->get();
-                foreach ($carts as $cartItem) {
-                    $cartItem->address_id = $request->address_id;
-                    $cartItem->save();
-                }
-            } else {
-                $request->validate([
-                    'name' => 'required',
-                    'email' => 'required|email',
-                    'phone' => 'required',
-                    'address' => 'required',
-                    'country_id' => 'required',
-                    'state_id' => 'required',
-                    'city_id' => 'required',
-                    'postal_code' => 'required',
-                ]);
-
-                // Check if the email already exists in the users table
-                $user = User::where('email', $request->email)->first();
-                
-                if (!$user) {
-                    // Create a new user if the email doesn't exist
-                    $user = User::create([
-                        'name' => $request->name,
-                        'email' => $request->email,
-                        'phone' => $request->phone,
-                        'password' => bcrypt('default_password'), // You may want to ask the user to reset this later
-                    ]);
-        
-                    // Automatically log the user in
-                    Auth::login($user);
-                } else {
-                    // If the user already exists, log them in
-                    Auth::login($user);
-                }
-        
-                // Update the user_id in the cart table and remove temp_user_id
-                $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
-                foreach ($carts as $cartItem) {
-                    $cartItem->user_id = $user->id;
-                    $cartItem->temp_user_id = null;
-                    $cartItem->save();
-                }
-            }
-        
-            // Reload the cart items with the updated user_id
-            $carts = Cart::where('user_id', auth()->id())->get();
-        
-            if ($carts->isEmpty()) {
-                flash(translate('Your cart is empty'))->warning();
-                return redirect()->route('home');
-            }
-        
-            return view('frontend.delivery_info', compact('carts'));
+    if ($auth_user) {
+        if ($request->address_id == null) {
+            flash(translate("Please add a shipping address"))->warning();
+            return back();
         }
+
+        // Retrieve all addresses for the logged-in user
+        $addresses = Address::where('user_id', $auth_user->id)->get();
+
+        // Save address_id for logged-in user
+        $carts = Cart::where('user_id', $auth_user->id)->get();
+        foreach ($carts as $cartItem) {
+            $cartItem->address_id = $request->address_id;
+            $cartItem->save();
+        }
+    } else {
+        $request->validate([
+            'name' => 'required',
+            'email' => 'required|email',
+            'phone' => 'required',
+            'address' => 'required',
+            'country_id' => 'required',
+            'state_id' => 'required',
+            'city_id' => 'required',
+            'postal_code' => 'required',
+        ]);
+
+        // Check if the email already exists in the users table
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            // Create a new user if the email doesn't exist
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'password' => bcrypt('default_password'), // You may want to ask the user to reset this later
+            ]);
+
+            // Automatically log the user in
+            Auth::login($user);
+        } else {
+            // If the user already exists, log them in
+            Auth::login($user);
+        }
+
+        // Create the address for the logged-in user
+        $address = Address::create([
+            'user_id' => $user->id,
+            'address' => $request->address,
+            'gstin' => $request->gstin,
+            'phone' => $request->phone,
+            'country_id' => $request->country_id,
+            'state_id' => $request->state_id,
+            'city_id' => $request->city_id,
+            'postal_code' => $request->postal_code,
+        ]);
+
+        // Update the user_id in the cart table and remove temp_user_id
+        $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
+        foreach ($carts as $cartItem) {
+            $cartItem->user_id = $user->id;
+            $cartItem->address_id = $address->id;
+            $cartItem->temp_user_id = null;
+            $cartItem->save();
+        }
+
+        // Retrieve all addresses for the new user
+        $addresses = Address::where('user_id', $user->id)->get();
+    }
+
+    // Reload the cart items with the updated user_id
+    $carts = Cart::where('user_id', auth()->id())->get();
+
+    if ($carts->isEmpty()) {
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('home');
+    }
+
+    // Pass the addresses to the view
+    return view('frontend.delivery_info', compact('carts', 'addresses'));
+}
+
     
     public function store_delivery_info(Request $request)
     {
@@ -1253,6 +1272,7 @@ public function createUser($guest_shipping_info)
         $tempUser = session('temp_user_id');
         $carts = $authUser ? Cart::where('user_id', $authUser->id)->get() : Cart::where('temp_user_id', $tempUser)->get();
     
+        dd($carts);
         if ($carts->isEmpty()) {
             flash(translate('Your cart is empty'))->warning();
             return redirect()->route('home');
