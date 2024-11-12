@@ -961,38 +961,44 @@ class CheckoutController extends Controller
         
         $carts = $authUser ? 
             Cart::where('user_id', $authUser->id)->get() : 
-            ($tempUser ? Cart::where('temp_user_id', $tempUser)->get() : []);
+            ($tempUser ? Cart::where('temp_user_id', $tempUser)->get() : collect()); // Ensure $carts is always a collection
     
+        // Check if $carts is empty
         if ($carts->isEmpty()) {
             flash(translate('Your cart is empty'))->warning();
             return redirect()->route('home');
         }
     
-        $shipping_info = $authUser ? Address::where('id', $carts[0]['address_id'])->first() : null;
+        // Debug: Log all cart keys
+        \Log::info('Cart keys: ' . implode(', ', $carts->keys()->toArray()));
+    
+        $shipping_info = $authUser ? Address::where('id', $carts->first()->address_id)->first() : null;
         $total = 0;
         $tax = 0;
         $shipping = 0;
         $subtotal = 0;
     
-        if ($carts && count($carts) > 0) {
+        if ($carts->count() > 0) {
             foreach ($carts as $key => $cartItem) {
-                $product = Product::find($cartItem['product_id']);
-                $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
-                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+                $product = Product::find($cartItem->product_id); // Use -> to access properties of an object
+                $tax += cart_product_tax($cartItem, $product, false) * $cartItem->quantity;
+                $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem->quantity;
     
-                // Use $carts->get($key) instead of $carts[$key]
-                if ($carts->get($key)) {  // Double-check if the item exists
+                // Check if the cart item is valid before accessing
+                if ($cartItem) {
                     if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
-                        $cartItem['shipping_type'] = $request['shipping_type_' . $product->user_id] == 'pickup_point' ? 'pickup_point' : 'home_delivery';
-                        $cartItem['shipping_cost'] = $cartItem['shipping_type'] == 'home_delivery' ? getShippingCost($carts, $key) : 0;
+                        $cartItem->shipping_type = $request['shipping_type_' . $product->user_id] == 'pickup_point' ? 'pickup_point' : 'home_delivery';
+                        $cartItem->shipping_cost = $cartItem->shipping_type == 'home_delivery' ? getShippingCost($carts, $key) : 0;
                     } else {
-                        $cartItem['shipping_type'] = 'carrier';
-                        $cartItem['carrier_id'] = $request['carrier_id_' . $product->user_id];
-                        $cartItem['shipping_cost'] = getShippingCost($carts, $key, $cartItem['carrier_id']);
+                        $cartItem->shipping_type = 'carrier';
+                        $cartItem->carrier_id = $request['carrier_id_' . $product->user_id];
+                        $cartItem->shipping_cost = getShippingCost($carts, $key, $cartItem->carrier_id);
                     }
     
-                    $shipping += $cartItem['shipping_cost'];
+                    $shipping += $cartItem->shipping_cost;
                     $cartItem->save();
+                } else {
+                    \Log::warning("Invalid cart item at index: $key"); // Log a warning for invalid cart items
                 }
             }
     
@@ -1003,6 +1009,7 @@ class CheckoutController extends Controller
             return redirect()->route('home');
         }
     }
+    
     
 
     
