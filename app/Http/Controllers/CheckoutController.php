@@ -1174,6 +1174,7 @@ public function createUser($guest_shipping_info)
     
     public function store_shipping_info(Request $request)
     {
+        dd($request->all());
         $auth_user = auth()->user();
         $temp_user_id = $request->session()->get('temp_user_id');
     
