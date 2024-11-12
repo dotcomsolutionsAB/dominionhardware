@@ -315,54 +315,103 @@ class CheckoutController extends Controller
 
     
     
+    // public function checkout(Request $request)
+    // {
+    //     $message = ''; // Initialize the message
+    //     $combined_order_id = null; // Initialize for use later
+    //     // $address_id = null; // Initialize $address_id to ensure it's always defined
+    //     $session_data = session()->all(); // Retrieve session data for debugging
+
+    //     // Check if guest checkout, create user
+    //     if (auth()->user() == null) {
+    //         // Use session data for guest shipping info if available
+    //         $guest_shipping_info = $request->except('_token', 'payment_option');
+    //         $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
+
+    //         // Attempt to create a guest user
+    //         $guest_user = $this->createUser($guest_shipping_info);
+
+    //         // Handle guest user creation errors
+    //         if (is_object($guest_user)) {
+    //             $errors = $guest_user;
+    //             return view('frontend.checkout', compact('errors', 'message', 'combined_order_id','session_data'));
+    //         }
+
+    //         if ($guest_user == 0) {
+    //             $message = 'Guest user creation failed. Please try again later.';
+    //             return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+    //         }
+    //     }
+
+    //     // Check if a payment option is selected
+    //     if ($request->payment_option != null || $request->payment_option =='cash_on_delivery') {
+    //         $message = 'No payment option selected.';
+    //         return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+    //     }
+
+    //     // Proceed with storing the order
+    //     (new OrderController)->store($request);
+
+    //     // Retrieve combined order ID
+    //     $combined_order_id = session('combined_order_id');
+
+    //     // Update message based on combined order ID presence
+    //     $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
+
+    //     // Pass all variables to the view
+    //     // return view('frontend.checkout', compact('combined_order_id', 'message'));
+    //     return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+
+    // }
     public function checkout(Request $request)
-    {
-        $message = ''; // Initialize the message
-        $combined_order_id = null; // Initialize for use later
-        // $address_id = null; // Initialize $address_id to ensure it's always defined
-        $session_data = session()->all(); // Retrieve session data for debugging
+{
+    $message = ''; // Initialize the message
+    $combined_order_id = null; // Initialize for use later
+    $session_data = session()->all(); // Retrieve session data for debugging
 
-        // Check if guest checkout, create user
-        if (auth()->user() == null) {
-            // Use session data for guest shipping info if available
-            $guest_shipping_info = $request->except('_token', 'payment_option');
-            $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
+    // Retrieve cart data from session or your cart model
+    $carts = session()->get('cart', []); // Or use your method to fetch cart items
+    $total = array_sum(array_column($carts, 'total')); // Calculate the total if necessary
 
-            // Attempt to create a guest user
-            $guest_user = $this->createUser($guest_shipping_info);
+    // Check if guest checkout, create user
+    if (auth()->user() == null) {
+        // Use session data for guest shipping info if available
+        $guest_shipping_info = $request->except('_token', 'payment_option');
+        $guest_shipping_info = array_merge($guest_shipping_info, session('guest_shipping_info', []));
 
-            // Handle guest user creation errors
-            if (is_object($guest_user)) {
-                $errors = $guest_user;
-                return view('frontend.checkout', compact('errors', 'message', 'combined_order_id','session_data'));
-            }
+        // Attempt to create a guest user
+        $guest_user = $this->createUser($guest_shipping_info);
 
-            if ($guest_user == 0) {
-                $message = 'Guest user creation failed. Please try again later.';
-                return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
-            }
+        // Handle guest user creation errors
+        if (is_object($guest_user)) {
+            $errors = $guest_user;
+            return view('frontend.checkout', compact('errors', 'message', 'combined_order_id', 'session_data', 'carts', 'total'));
         }
 
-        // Check if a payment option is selected
-        if ($request->payment_option != null || $request->payment_option =='cash_on_delivery') {
-            $message = 'No payment option selected.';
-            return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
+        if ($guest_user == 0) {
+            $message = 'Guest user creation failed. Please try again later.';
+            return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total'));
         }
-
-        // Proceed with storing the order
-        (new OrderController)->store($request);
-
-        // Retrieve combined order ID
-        $combined_order_id = session('combined_order_id');
-
-        // Update message based on combined order ID presence
-        $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
-
-        // Pass all variables to the view
-        // return view('frontend.checkout', compact('combined_order_id', 'message'));
-        return view('frontend.checkout', compact('message', 'combined_order_id','session_data'));
-
     }
+
+    // Check if a payment option is selected
+    if ($request->payment_option != null || $request->payment_option == 'cash_on_delivery') {
+        $message = 'No payment option selected.';
+        return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total'));
+    }
+
+    // Proceed with storing the order
+    (new OrderController)->store($request);
+
+    // Retrieve combined order ID
+    $combined_order_id = session('combined_order_id');
+
+    // Update message based on combined order ID presence
+    $message = $combined_order_id ? 'Redirecting to confirmation page.' : 'Order processing failed.';
+
+    // Pass all variables to the view
+    return view('frontend.checkout', compact('message', 'combined_order_id', 'session_data', 'carts', 'total'));
+}
 
 
     //Original 
