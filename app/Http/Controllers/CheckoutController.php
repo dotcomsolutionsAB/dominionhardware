@@ -971,8 +971,6 @@ public function checkout(Request $request)
     }
 }
 
-
-
 public function createUser($guest_shipping_info)
 {
     $validator = Validator::make($guest_shipping_info, [
