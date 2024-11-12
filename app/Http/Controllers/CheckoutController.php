@@ -1115,7 +1115,13 @@ class CheckoutController extends Controller
 
     // Pass all data to the checkout view for confirmation
     // return view('frontend.checkout', compact('carts', 'subtotal', 'tax', 'shipping', 'total'));
-    return view('frontend.payment_select', compact('carts', 'shipping_info','subtotal', 'tax', 'total', 'request'));
+    // Check if $shipping_info is defined, otherwise set a default value
+if (!isset($shipping_info)) {
+    $shipping_info = []; // or set it to a default value that makes sense for your logic
+}
+
+return view('frontend.payment_select', compact('carts', 'shipping_info', 'subtotal', 'tax', 'total', 'request'));
+
 
 }
 
