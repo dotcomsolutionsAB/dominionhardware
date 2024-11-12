@@ -876,7 +876,7 @@ public function index(Request $request)
 
 public function checkout(Request $request)
 {
-    dd(session()->all()); 
+    // dd(session()->all()); 
     \Log::info('Checkout process started.');
 
     if (auth()->user() == null) {
@@ -899,6 +899,8 @@ public function checkout(Request $request)
     if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
         \Log::warning('Payment option not selected.');
         flash(translate('Please select a payment option.'))->warning();
+        echo "payment :   ";
+        dd($request->payment_option);
         return redirect()->route('checkout.shipping_info');
     }
 
