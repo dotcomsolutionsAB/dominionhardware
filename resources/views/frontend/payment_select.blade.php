@@ -47,21 +47,7 @@
             </div>
         </div>
     </section>
-    @foreach(session()->all() as $key => $value)
-        <li><strong>{{ $key }}:</strong> {{ is_array($value) ? json_encode($value) : $value }}</li>
-    @endforeach
-    @php
-    //    $carts = [];
-       // Retrieve all session data
-$sessionData = session()->all();
 
-// Output all session data
-// echo "Session Data:";
-// echo "<pre>";
-// print_r($sessionData); // Display session data in a readable format
-// echo "</pre>";
-
-    @endphp
     <!-- Payment Info -->
     <section class="mb-4">
         <div class="container text-left">
