@@ -1042,12 +1042,12 @@ public function checkout(Request $request)
         $shipping = 0;
         $subtotal = 0;
     
-        foreach ($carts as $cartItem) {
+        foreach ($carts as $key => $cartItem) {
+            // Now $key will be the index, and $cartItem will be the item
             $product = Product::find($cartItem['product_id']);
             $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
-    
-            // Determine shipping type and cost
+        
             if (get_setting('shipping_type') != 'carrier_wise_shipping' || $request['shipping_type_' . $product->user_id] == 'pickup_point') {
                 $cartItem['shipping_type'] = $request['shipping_type_' . $product->user_id] == 'pickup_point' ? 'pickup_point' : 'home_delivery';
                 $cartItem['pickup_point'] = $request['pickup_point_id_' . $product->user_id] ?? null;
@@ -1057,7 +1057,7 @@ public function checkout(Request $request)
                 $cartItem['carrier_id'] = $request['carrier_id_' . $product->user_id];
                 $cartItem['shipping_cost'] = getShippingCost($carts, $key, $cartItem['carrier_id']);
             }
-    
+        
             $shipping += $cartItem['shipping_cost'];
             $cartItem->save();
         }
