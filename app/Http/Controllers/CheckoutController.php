@@ -936,6 +936,8 @@ public function checkout(Request $request)
 
     // Check if combined order ID is set in session
     $combined_order_id = $request->session()->get('combined_order_id');
+    \Log::info('Session combined_order_id:', ['combined_order_id' => $combined_order_id]);
+
     if ($combined_order_id != null) {
         \Log::info('Combined order ID set: ' . $combined_order_id);
 
@@ -968,6 +970,7 @@ public function checkout(Request $request)
         return redirect()->route('checkout.shipping_info');
     }
 }
+
 
 
 public function createUser($guest_shipping_info)
