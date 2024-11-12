@@ -1114,7 +1114,9 @@ class CheckoutController extends Controller
     $total = $subtotal + $tax + $shipping;
 
     // Pass all data to the checkout view for confirmation
-    return view('frontend.checkout', compact('carts', 'subtotal', 'tax', 'shipping', 'total'));
+    // return view('frontend.checkout', compact('carts', 'subtotal', 'tax', 'shipping', 'total'));
+    return view('frontend.payment_select', compact('carts', 'shipping_info','subtotal', 'tax', 'total', 'request'));
+
 }
 
 
