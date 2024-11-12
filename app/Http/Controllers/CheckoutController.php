@@ -804,6 +804,7 @@ class CheckoutController extends Controller
 //     flash(translate('Please select cart items to proceed'))->error();
 //     return back();
 // }
+
 public function index(Request $request)
 {
     if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
@@ -873,23 +874,31 @@ public function index(Request $request)
     return back();
 }
 
-
 public function checkout(Request $request)
 {
-    if (auth()->user() == null) {
-        $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+    \Log::info('Checkout process started.');
 
+    // Check for guest checkout and create user if not logged in
+    if (auth()->user() == null) {
+        \Log::info('Guest user detected. Attempting to create a guest account.');
+
+        $guest_user = $this->createUser($request->except('_token', 'payment_option'));
         if (is_object($guest_user)) {
-            return redirect()->route('checkout')->withErrors($guest_user);
+            $errors = $guest_user;
+            \Log::error('Error creating guest user:', $errors->toArray());
+            return redirect()->route('checkout')->withErrors($errors);
         }
 
         if ($guest_user == 0) {
-            flash(translate('Guest user creation failed. Please try again later.'))->warning();
+            \Log::warning('Guest user creation failed.');
+            flash(translate('Please try again later.'))->warning();
             return redirect()->route('checkout');
         }
     }
 
-    if ($request->payment_option == null) {
+    // Check if a payment option is selected
+    if ($request->payment_option == null && !session()->has('cash_on_delivery')) {
+        \Log::warning('Payment option not selected.');
         flash(translate('Please select a payment option.'))->warning();
         return redirect()->route('checkout.shipping_info');
     }
@@ -897,47 +906,64 @@ public function checkout(Request $request)
     $user = auth()->user();
     $carts = Cart::where('user_id', $user->id)->active()->get();
 
+    // Check if cart is empty
+    if ($carts->isEmpty()) {
+        \Log::warning('Cart is empty. Redirecting to home.');
+        flash(translate('Your cart is empty'))->warning();
+        return redirect()->route('home');
+    }
+
+    // Minimum order amount check
     if (get_setting('minimum_order_amount_check') == 1) {
         $subtotal = 0;
         foreach ($carts as $cartItem) {
             $product = Product::find($cartItem['product_id']);
             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
         }
+
         if ($subtotal < get_setting('minimum_order_amount')) {
+            \Log::warning('Order amount is less than the minimum required.');
             flash(translate('Your order amount is less than the minimum order amount'))->warning();
             return redirect()->route('home');
         }
     }
 
+    // Proceed with order creation
+    \Log::info('Proceeding to create order.');
     (new OrderController)->store($request);
 
-    if (count($carts) > 0) {
-        Cart::where('user_id', $user->id)->delete();
-    }
+    // Check if combined order ID is set in session
+    $combined_order_id = $request->session()->get('combined_order_id');
+    if ($combined_order_id != null) {
+        \Log::info('Combined order ID set: ' . $combined_order_id);
 
-    $request->session()->put('payment_type', 'cart_payment');
-    $data['combined_order_id'] = $request->session()->get('combined_order_id');
-    $request->session()->put('payment_data', $data);
-
-    if ($request->session()->get('combined_order_id')) {
+        // Handle payment or manual payment
         $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
         if (class_exists($decorator)) {
             return (new $decorator)->pay($request);
         } else {
-            $combined_order = CombinedOrder::findOrFail($request->session()->get('combined_order_id'));
+            $combined_order = CombinedOrder::findOrFail($combined_order_id);
+            $manual_payment_data = [
+                'name' => $request->payment_option,
+                'amount' => $combined_order->grand_total,
+                'trx_id' => $request->trx_id,
+                'photo' => $request->photo
+            ];
+
             foreach ($combined_order->orders as $order) {
                 $order->manual_payment = 1;
-                $order->manual_payment_data = json_encode([
-                    'name' => $request->payment_option,
-                    'amount' => $combined_order->grand_total,
-                    'trx_id' => $request->trx_id,
-                    'photo' => $request->photo,
-                ]);
+                $order->manual_payment_data = json_encode($manual_payment_data);
                 $order->save();
             }
-            flash(translate('Your order has been placed successfully.'))->success();
+
+            \Log::info('Order placed successfully. Redirecting to confirmation page.');
+            flash(translate('Your order has been placed successfully. Please submit payment information from purchase history'))->success();
             return redirect()->route('order_confirmed');
         }
+    } else {
+        \Log::error('Combined order ID is null. Order creation failed.');
+        flash(translate('Something went wrong. Please try again.'))->warning();
+        return redirect()->route('checkout.shipping_info');
     }
 }
 
@@ -952,16 +978,19 @@ public function createUser($guest_shipping_info)
         'state_id' => 'required|integer',
         'city_id' => 'required|integer',
         'postal_code' => 'required|max:10',
-        'gstin' => 'max:255',
+        'gstin' => 'nullable|max:255',
     ]);
 
     if ($validator->fails()) {
+        \Log::error('Validation failed for guest user creation:', $validator->errors()->toArray());
         return $validator->errors();
     }
 
+    $success = 1;
     $password = substr(hash('sha512', rand()), 0, 8);
     $isEmailVerificationEnabled = get_setting('email_verification');
 
+    // Create or find user
     $user = User::updateOrCreate(
         ['email' => $guest_shipping_info['email']],
         [
@@ -972,31 +1001,48 @@ public function createUser($guest_shipping_info)
         ]
     );
 
-    if (!$user->wasRecentlyCreated && !$user->exists) {
-        return 'User creation failed';
+    if ($user->wasRecentlyCreated) {
+        // Send account creation email
+        $email_data = [
+            'email' => $user->email,
+            'password' => $password,
+            'subject' => translate('Account Opening Email'),
+            'from' => env('MAIL_FROM_ADDRESS')
+        ];
+
+        try {
+            Mail::to($user->email)->queue(new GuestAccountOpeningMailManager($email_data));
+            if ($isEmailVerificationEnabled) {
+                $user->sendEmailVerificationNotification();
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send email for guest user:', ['error' => $e->getMessage()]);
+            $user->delete();
+            return 0;
+        }
     }
 
-    $address = new Address([
-        'user_id' => $user->id,
-        'address' => $guest_shipping_info['address'],
-        'country_id' => $guest_shipping_info['country_id'],
-        'state_id' => $guest_shipping_info['state_id'],
-        'city_id' => $guest_shipping_info['city_id'],
-        'postal_code' => $guest_shipping_info['postal_code'],
-        'phone' => $guest_shipping_info['phone'],
-        'longitude' => $guest_shipping_info['longitude'] ?? null,
-        'latitude' => $guest_shipping_info['latitude'] ?? null,
-        'gstin' => $guest_shipping_info['gstin'] ?? null,
-    ]);
-
+    // Save address
+    $address = new Address;
+    $address->user_id = $user->id;
+    $address->address = $guest_shipping_info['address'];
+    $address->country_id = $guest_shipping_info['country_id'];
+    $address->state_id = $guest_shipping_info['state_id'];
+    $address->city_id = $guest_shipping_info['city_id'];
+    $address->postal_code = $guest_shipping_info['postal_code'];
+    $address->phone = $guest_shipping_info['phone'];
+    $address->longitude = $guest_shipping_info['longitude'] ?? null;
+    $address->latitude = $guest_shipping_info['latitude'] ?? null;
+    $address->gstin = $guest_shipping_info['gstin'] ?? null;
     $address->save();
 
+    // Link cart items
     $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
     foreach ($carts as $cart) {
         $cart->update([
             'user_id' => $user->id,
             'address_id' => $address->id,
-            'temp_user_id' => null,
+            'temp_user_id' => null
         ]);
     }
 
@@ -1004,8 +1050,142 @@ public function createUser($guest_shipping_info)
     Session::forget('temp_user_id');
     Session::forget('guest_shipping_info');
 
-    return $user;
+    return $success;
 }
+
+
+// public function checkout(Request $request)
+// {
+//     if (auth()->user() == null) {
+//         $guest_user = $this->createUser($request->except('_token', 'payment_option'));
+
+//         if (is_object($guest_user)) {
+//             return redirect()->route('checkout')->withErrors($guest_user);
+//         }
+
+//         if ($guest_user == 0) {
+//             flash(translate('Guest user creation failed. Please try again later.'))->warning();
+//             return redirect()->route('checkout');
+//         }
+//     }
+
+//     if ($request->payment_option == null) {
+//         flash(translate('Please select a payment option.'))->warning();
+//         return redirect()->route('checkout.shipping_info');
+//     }
+
+//     $user = auth()->user();
+//     $carts = Cart::where('user_id', $user->id)->active()->get();
+
+//     if (get_setting('minimum_order_amount_check') == 1) {
+//         $subtotal = 0;
+//         foreach ($carts as $cartItem) {
+//             $product = Product::find($cartItem['product_id']);
+//             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+//         }
+//         if ($subtotal < get_setting('minimum_order_amount')) {
+//             flash(translate('Your order amount is less than the minimum order amount'))->warning();
+//             return redirect()->route('home');
+//         }
+//     }
+
+//     (new OrderController)->store($request);
+
+//     if (count($carts) > 0) {
+//         Cart::where('user_id', $user->id)->delete();
+//     }
+
+//     $request->session()->put('payment_type', 'cart_payment');
+//     $data['combined_order_id'] = $request->session()->get('combined_order_id');
+//     $request->session()->put('payment_data', $data);
+
+//     if ($request->session()->get('combined_order_id')) {
+//         $decorator = __NAMESPACE__ . '\\Payment\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $request->payment_option))) . "Controller";
+//         if (class_exists($decorator)) {
+//             return (new $decorator)->pay($request);
+//         } else {
+//             $combined_order = CombinedOrder::findOrFail($request->session()->get('combined_order_id'));
+//             foreach ($combined_order->orders as $order) {
+//                 $order->manual_payment = 1;
+//                 $order->manual_payment_data = json_encode([
+//                     'name' => $request->payment_option,
+//                     'amount' => $combined_order->grand_total,
+//                     'trx_id' => $request->trx_id,
+//                     'photo' => $request->photo,
+//                 ]);
+//                 $order->save();
+//             }
+//             flash(translate('Your order has been placed successfully.'))->success();
+//             return redirect()->route('order_confirmed');
+//         }
+//     }
+// }
+
+// public function createUser($guest_shipping_info)
+// {
+//     $validator = Validator::make($guest_shipping_info, [
+//         'name' => 'required|string|max:255',
+//         'email' => 'required|email|max:255',
+//         'phone' => 'required|max:12',
+//         'address' => 'required|max:255',
+//         'country_id' => 'required|integer',
+//         'state_id' => 'required|integer',
+//         'city_id' => 'required|integer',
+//         'postal_code' => 'required|max:10',
+//         'gstin' => 'max:255',
+//     ]);
+
+//     if ($validator->fails()) {
+//         return $validator->errors();
+//     }
+
+//     $password = substr(hash('sha512', rand()), 0, 8);
+//     $isEmailVerificationEnabled = get_setting('email_verification');
+
+//     $user = User::updateOrCreate(
+//         ['email' => $guest_shipping_info['email']],
+//         [
+//             'name' => $guest_shipping_info['name'],
+//             'phone' => $guest_shipping_info['phone'],
+//             'password' => Hash::make($password),
+//             'email_verified_at' => $isEmailVerificationEnabled ? null : now(),
+//         ]
+//     );
+
+//     if (!$user->wasRecentlyCreated && !$user->exists) {
+//         return 'User creation failed';
+//     }
+
+//     $address = new Address([
+//         'user_id' => $user->id,
+//         'address' => $guest_shipping_info['address'],
+//         'country_id' => $guest_shipping_info['country_id'],
+//         'state_id' => $guest_shipping_info['state_id'],
+//         'city_id' => $guest_shipping_info['city_id'],
+//         'postal_code' => $guest_shipping_info['postal_code'],
+//         'phone' => $guest_shipping_info['phone'],
+//         'longitude' => $guest_shipping_info['longitude'] ?? null,
+//         'latitude' => $guest_shipping_info['latitude'] ?? null,
+//         'gstin' => $guest_shipping_info['gstin'] ?? null,
+//     ]);
+
+//     $address->save();
+
+//     $carts = Cart::where('temp_user_id', session('temp_user_id'))->get();
+//     foreach ($carts as $cart) {
+//         $cart->update([
+//             'user_id' => $user->id,
+//             'address_id' => $address->id,
+//             'temp_user_id' => null,
+//         ]);
+//     }
+
+//     auth()->login($user);
+//     Session::forget('temp_user_id');
+//     Session::forget('guest_shipping_info');
+
+//     return $user;
+// }
     
     public function store_shipping_info(Request $request)
     {
