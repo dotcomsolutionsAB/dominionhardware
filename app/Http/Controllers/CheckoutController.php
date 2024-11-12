@@ -1222,20 +1222,26 @@ public function createUser($guest_shipping_info)
                 }
 
                 // Add the address in the addresses table
-                $address = Address::create([
-                    'user_id' => $user->id,
-                    'address' => $request->address,
-                    'country_id' => $request->country_id,
-                    'state_id' => $request->state_id,
-                    'city_id' => $request->city_id,
-                    'postal_code' => $request->postal_code,
-                ]);
-
-                echo "address : ";
-                echo "<pre>";
-                print_r($address);
-                echo "</pre>";
-                die();
+                try {
+                    $address = Address::create([
+                        'user_id' => $user->id,
+                        'address' => $request->address,
+                        'country_id' => $request->country_id,
+                        'state_id' => $request->state_id,
+                        'city_id' => $request->city_id,
+                        'postal_code' => $request->postal_code,
+                    ]);
+                
+                    echo "Address created successfully: ";
+                    echo "<pre>";
+                    print_r($address);
+                    echo "</pre>";
+                } catch (\Exception $e) {
+                    // Catch and display the error message
+                    echo "Error: ";
+                    echo $e->getMessage();
+                    die();
+                }                
 
                 // Update the user_id in the cart table and remove temp_user_id
                 $carts = $temp_user_id ? Cart::where('temp_user_id', $temp_user_id)->get() : [];
