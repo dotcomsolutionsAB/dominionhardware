@@ -1219,6 +1219,8 @@ public function createUser($guest_shipping_info)
                         'phone' => $request->phone,
                         'password' => bcrypt('default_password'), // You may want to ask the user to reset this later
                     ]);
+                    // Automatically log the user in
+                    Auth::login($user);
                 }
 
                 // Add the address in the addresses table
