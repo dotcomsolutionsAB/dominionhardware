@@ -741,6 +741,69 @@ class CheckoutController extends Controller
     //     return view('frontend.checkout');
     // }
 
+// public function index(Request $request)
+// {
+//     if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
+//         return redirect()->route('user.login');
+//     }
+
+//     if (auth()->check() && !$request->user()->hasVerifiedEmail()) {
+//         return redirect()->route('verification.notice');
+//     }
+
+//     $country_id = 0;
+//     $city_id = 0;
+//     $address_id = 0;
+//     $shipping_info = [];
+
+//     if (auth()->check()) {
+//         $user_id = Auth::user()->id;
+//         $carts = Cart::where('user_id', $user_id)->active()->get();
+//         $addresses = Address::where('user_id', $user_id)->get();
+//         if (count($addresses)) {
+//             $address = $addresses->first();
+//             $address_id = $address->id;
+//             $country_id = $address->country_id;
+//             $city_id = $address->city_id;
+//             $default_address = $addresses->where('set_default', 1)->first();
+//             if ($default_address) {
+//                 $address_id = $default_address->id;
+//                 $country_id = $default_address->country_id;
+//                 $city_id = $default_address->city_id;
+//             }
+//         }
+//     } else {
+//         $temp_user_id = $request->session()->get('temp_user_id');
+//         $carts = ($temp_user_id) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
+//     }
+
+//     $shipping_info['country_id'] = $country_id;
+//     $shipping_info['city_id'] = $city_id;
+//     $total = 0;
+//     $tax = 0;
+//     $shipping = 0;
+//     $subtotal = 0;
+
+//     if ($carts && count($carts) > 0) {
+//         $carts->update(['address_id' => $address_id]);
+//         $carts = $carts->fresh();
+
+//         foreach ($carts as $cartItem) {
+//             $product = Product::find($cartItem['product_id']);
+//             $tax += cart_product_tax($cartItem, $product, false) * $cartItem['quantity'];
+//             $subtotal += cart_product_price($cartItem, $product, false, false) * $cartItem['quantity'];
+//             $cartItem['shipping_cost'] = getShippingCost($carts, $cartItem->id, $shipping_info);
+//             $shipping += $cartItem['shipping_cost'];
+//             $cartItem->save();
+//         }
+
+//         $total = $subtotal + $tax + $shipping;
+//         return view('frontend.shipping_info', compact('carts', 'address_id', 'total', 'shipping_info'));
+//     }
+
+//     flash(translate('Please select cart items to proceed'))->error();
+//     return back();
+// }
 public function index(Request $request)
 {
     if (get_setting('guest_checkout_activation') == 0 && auth()->user() == null) {
@@ -774,7 +837,7 @@ public function index(Request $request)
         }
     } else {
         $temp_user_id = $request->session()->get('temp_user_id');
-        $carts = ($temp_user_id) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : [];
+        $carts = ($temp_user_id) ? Cart::where('temp_user_id', $temp_user_id)->active()->get() : collect();
     }
 
     $shipping_info['country_id'] = $country_id;
@@ -785,7 +848,12 @@ public function index(Request $request)
     $subtotal = 0;
 
     if ($carts && count($carts) > 0) {
-        $carts->update(['address_id' => $address_id]);
+        // Update each cart item's address_id
+        foreach ($carts as $cartItem) {
+            $cartItem->address_id = $address_id;
+            $cartItem->save();
+        }
+
         $carts = $carts->fresh();
 
         foreach ($carts as $cartItem) {
@@ -804,6 +872,7 @@ public function index(Request $request)
     flash(translate('Please select cart items to proceed'))->error();
     return back();
 }
+
 
 public function checkout(Request $request)
 {
