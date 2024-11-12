@@ -70,7 +70,8 @@ $sessionData = session()->all();
                     <form action="{{ route('payment.checkout') }}" class="form-default" role="form" method="POST"
                         id="checkout-form">
                         @csrf
-                        <input type="hidden" name="owner_id" value="{{ $carts[0]['owner_id'] }}">
+                        {{-- <input type="hidden" name="owner_id" value="{{ $carts[0]['owner_id'] }}"> --}}
+                        <input type="hidden" name="owner_id" value="{{ isset($carts[0]) ? $carts[0]['owner_id'] : '' }}">
 
                         <div class="card rounded-0 border shadow-none">
                             <!-- Additional Info -->
